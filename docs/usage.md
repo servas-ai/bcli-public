@@ -321,7 +321,8 @@ needed. Daemon state lives in `~/.bcli/` (`BCLI_HOME`); the daemon log is `~/.bc
 - **Same logon session, not elevated.** The daemon and the vault talk over named pipes that belong to your Windows
   logon session. Run `bcli daemon start`, `bcli vault unlock` and your agent from normal, **non-elevated** terminals
   in the same desktop session. A "Run as administrator" shell, a different user, or an SSH login into the machine
-  cannot reach them (bcli refuses elevated tokens on purpose).
+  cannot reach them (bcli refuses elevated tokens on purpose). In such a shell `bcli daemon status` reports the daemon
+  as not running even though it runs in your desktop session — check from a normal terminal on that desktop.
 - **Start bcli from a normal terminal, not from a scheduled task.** If bcli runs inside a Windows job that keeps its
   child processes in the job (for example a Task Scheduler task), the browser extension refuses to fill credentials.
   `bcli daemon start` warns about it, and the daemon log shows `reason=pipe_owner sub=job_contained`.

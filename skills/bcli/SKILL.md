@@ -43,7 +43,8 @@ SID=$(agent-web start) || exit 1        # stdout = session id only; hints on std
 Never use `$SID` if `start` failed: report the exit code (see table) instead.
 
 Windows PowerShell: `$sid = agent-web start; if ($LASTEXITCODE -ne 0) { throw "start failed" }` (same subcommands;
-quote refs: `'@e3'`).
+quote refs: `'@e3'`). In Windows PowerShell 5.1 run `[Console]::OutputEncoding = [Text.Encoding]::UTF8` once before
+capturing agent-web output, so non-ASCII page text is not garbled.
 
 ## 2. Drive with snapshots and refs
 

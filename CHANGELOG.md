@@ -3,7 +3,7 @@
 All notable changes to bcli are listed here. Releases and binaries:
 [github.com/servas-ai/bcli-public/releases](https://github.com/servas-ai/bcli-public/releases).
 
-## v0.14.0-rc.2 — first public release candidate
+## v0.14.0-rc.2 — second release candidate, first public release
 
 First public build of bcli for Linux, macOS and Windows.
 
@@ -21,7 +21,8 @@ First public build of bcli for Linux, macOS and Windows.
 - `bcli env list` shows `not-logged-in` before the first login; `--env local` works without configuration.
 - **agent-web** (`bin/agent-web` for Linux/macOS, `bin/agent-web.cmd` + `bin/agent-web-ps.ps1` for Windows): starts
   sessions and drives them with the open-source agent-browser CLI (snapshots and element refs), human hand-over via
-  `view` (plus `captcha`/`assist` on Linux/macOS), tunnels, audio (Linux/macOS) and stop — the recommended path for coding agents.
+  `view` (plus `captcha`/`assist` on Linux/macOS), tunnels, audio (Linux/macOS) and stop — the recommended path for coding agents. agent-browser's background process is started
+  detached, so captured output never hangs; the Windows script writes UTF-8.
 - **Public release repository** with installation guides, configuration and usage documentation, a ready-made agent
   skill (`skills/bcli/SKILL.md`), an `AGENTS.md` snippet and examples.
 

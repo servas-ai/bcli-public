@@ -57,6 +57,12 @@ Behaviour and contract:
   window can be shown (exit 3), use `agent-web view SID` instead. For local sessions the browser window is already on
   the desktop.
 - On PowerShell, quote element refs: `agent-web ab $sid click '@e3'`.
+- agent-web writes UTF-8. When you capture its output in **Windows PowerShell 5.1** (`$x = agent-web ab …`), set
+  `[Console]::OutputEncoding = [Text.Encoding]::UTF8` in that session first; otherwise non-ASCII text is decoded with
+  the OEM code page. PowerShell 7 and bash need nothing.
+- agent-web starts agent-browser's background process detached (Windows: hidden, without inherited handles;
+  Linux/macOS: stdio on `/dev/null`), so capturing its output with pipes, `$(...)`, `$x = ...` or `Start-Job` does not
+  hang.
 
 ## Install the skill
 
@@ -161,6 +167,8 @@ Never put passwords into prompts, scripts or environment variables the agent can
 | session gone after a few minutes | never connected (5 min) or idle (10 min) | connect immediately; raise `--idle-timeout` |
 | `page.screenshot()` hangs | waits for web fonts on the remote display | use CDP `Page.captureScreenshot` |
 | `agent-web ab` exit 69 | agent-browser not installed | `npm install -g agent-browser` |
+| Windows: the first `agent-web ab` of a session hangs when its output is captured | an agent-web older than this repository's version, or a background agent-browser started by hand | update `agent-web.cmd`/`agent-web-ps.ps1`; workaround: run `agent-web ab SID get url` once in an interactive console, or end the stray `agent-browser-win32-x64.exe` |
+| Windows: `?` or garbled characters in captured output | PowerShell 5.1 decodes with the OEM code page | `[Console]::OutputEncoding = [Text.Encoding]::UTF8` before capturing |
 | `agent-web ab` starts a local browser | an old agent-browser config with a browser profile | agent-web passes its own config; do not call `agent-browser` directly against the session |
 | `agent-web captcha` exit 3 (or exit 1 on Windows) | no desktop window possible here / not available on Windows | `agent-web view SID` and give the URL to the human directly |
 

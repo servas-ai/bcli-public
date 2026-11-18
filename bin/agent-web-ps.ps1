@@ -19,6 +19,11 @@
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = 'Stop'
 
+# UTF-8 in and out, so captured output (e.g. $x = agent-web ab ...) is not decoded with the OEM code page.
+# Setting the console encoding fails when there is no console; the pipeline encoding is set regardless.
+try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false } catch { Write-Verbose 'no console' }
+$OutputEncoding = New-Object System.Text.UTF8Encoding $false
+
 $Version     = '1.0.0'
 $Bcli        = if ($env:AGENT_WEB_BCLI) { $env:AGENT_WEB_BCLI } else { 'bcli' }
 $Ab          = if ($env:AGENT_WEB_AGENT_BROWSER) { $env:AGENT_WEB_AGENT_BROWSER } else { 'agent-browser' }
@@ -143,17 +148,40 @@ function Start-Session([string[]]$Rest) {
   Write-Hint "session ready ($detail). Next: agent-web ab $($session.id) open <url>; agent-web stop $($session.id) when done"
 }
 
+# The agent-browser executable as an application (.cmd/.exe), never the npm .ps1 shim.
+function Resolve-Ab {
+  $cmd = Get-Command $Ab -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $cmd) { Exit-With 69 "'$Ab' not found on PATH. Install the agent-browser CLI (e.g. npm install -g agent-browser)." }
+  return [string]$cmd.Path
+}
+
+# Runs agent-browser through ShellExecute in its own hidden console, without redirection. Neither it nor the
+# background daemon it may start inherits our stdout/stderr, so a caller that captures agent-web's output
+# (pipes, $x = ..., Start-Job, agent shells) is not held open by the long-running daemon.
+function Invoke-AbDetached([string]$AbPath, [string[]]$Arguments, [int]$TimeoutMs) {
+  $quoted = foreach ($a in $Arguments) { '"' + ($a -replace '"', '\"') + '"' }
+  try {
+    $p = Start-Process -FilePath $AbPath -ArgumentList ($quoted -join ' ') -WindowStyle Hidden -PassThru
+    if (-not $p.WaitForExit($TimeoutMs)) { Write-Hint "agent-browser start-up still running after $([int]($TimeoutMs / 1000)) s; continuing" }
+  } catch {
+    Write-Hint "could not pre-start the agent-browser daemon: $($_.Exception.Message)"
+  }
+}
+
 function Invoke-Ab([string[]]$Rest) {
   if ($Rest.Count -lt 2) { Exit-Usage 'usage: agent-web ab SID ARGS...' }
   $sid = $Rest[0]; Assert-Sid $sid
   $info = Get-SidState $sid
-  Assert-Tool $Ab 'Install the agent-browser CLI (e.g. npm install -g agent-browser).'
+  $abPath = Resolve-Ab
   $target = Get-CdpTarget $sid $info
   if (-not $target) { Exit-With 1 "could not resolve the CDP endpoint of session $sid" }
   $env:AGENT_BROWSER_CONFIG = Get-AbConfig
   $env:AGENT_BROWSER_SESSION = "bcli-$sid"
+  # Make sure the session's agent-browser daemon runs detached before the real command; the real command
+  # then only talks to it and exits.
+  Invoke-AbDetached $abPath @('--cdp', $target, 'get', 'url') 45000
   $abArgs = $Rest[1..($Rest.Count - 1)]
-  & $Ab --cdp $target @abArgs
+  & $abPath --cdp $target @abArgs
   exit $LASTEXITCODE
 }
 
@@ -188,10 +216,11 @@ function Stop-Session([string[]]$Rest) {
   if ($Rest.Count -ne 1) { Exit-Usage 'usage: agent-web stop SID' }
   $sid = $Rest[0]; Assert-Sid $sid
   $info = Get-SidState $sid
-  if (Get-Command $Ab -ErrorAction SilentlyContinue) {
+  $abCmd = Get-Command $Ab -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($abCmd) {
     $env:AGENT_BROWSER_CONFIG = Get-AbConfig
     $env:AGENT_BROWSER_SESSION = "bcli-$sid"
-    try { & $Ab close *> $null } catch { Write-Verbose 'agent-browser close failed; continuing' }
+    Invoke-AbDetached ([string]$abCmd.Path) @('close') 20000
   }
   [void](Invoke-Bcli ((Get-EnvArgs $info.Env) + @('session', 'stop', $sid)))
   Remove-Item -Force -ErrorAction SilentlyContinue (Get-StateFile $sid)

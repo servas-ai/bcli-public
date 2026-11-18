@@ -1,5 +1,6 @@
 """Create a bcli cloud session, open a page, take a screenshot over CDP, stop the session.
 
+    python3 -m venv .venv && . .venv/bin/activate   # Debian 13 and others refuse system-wide pip (PEP 668)
     pip install playwright        # no `playwright install` needed: we attach to the cloud browser
     python connect.py https://example.com
 

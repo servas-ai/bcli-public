@@ -93,6 +93,16 @@ bcli env use cloud                     # default from now on
 
 ## Managing environments
 
+`bcli env list` asks every cloud environment's server who you are. The `STATUS` column means:
+
+| Status | Meaning |
+|---|---|
+| `ok` | Reachable and signed in; `INSTALLATION`, `VERSION` and `ROLE` are filled in |
+| `bad-key` | The server did not accept the credentials. **Expected before your first `bcli login`** — current releases probe without a token and show `bad-key`; sign in and it changes to `ok`. <!-- verify after rc.2: will show "not logged in" --> After a login it means the token or (deprecated) API key was rejected: run `bcli login` again. |
+| `no-login` | The stored login could not be used (expired or refresh failed): `bcli login` |
+| `no-key` | A deprecated API-key reference could not be resolved |
+| `unreachable` | Network, proxy or DNS problem — see [troubleshooting](troubleshooting.md#environments) |
+
 ```bash
 bcli env list              # name, kind, reachability, installation, version and your role
 bcli env list --offline    # do not contact the servers

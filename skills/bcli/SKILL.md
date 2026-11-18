@@ -34,13 +34,16 @@ else's login, never configure API keys.
 ## 1. Start
 
 ```bash
-SID=$(agent-web start)                  # stdout = session id only; hints on stderr
-SID=$(agent-web start shop-1)           # with the persistent profile "shop-1" (must exist: bcli profile list)
-SID=$(agent-web start --gpu)            # WebGL/video-heavy pages
-SID=$(agent-web start --ttl 2h --locale en-US --timezone Europe/London)   # extra flags go to bcli
+SID=$(agent-web start) || exit 1        # stdout = session id only; hints on stderr. Non-zero exit = no session
+# variants: agent-web start shop-1 (persistent profile, must exist: bcli profile list)
+#           agent-web start --gpu  (WebGL/video-heavy pages)
+#           agent-web start --ttl 2h --locale en-US --timezone Europe/London   (extra flags go to bcli)
 ```
 
-Windows PowerShell: `$sid = agent-web start` (same subcommands; quote refs: `'@e3'`).
+Never use `$SID` if `start` failed: report the exit code (see table) instead.
+
+Windows PowerShell: `$sid = agent-web start; if ($LASTEXITCODE -ne 0) { throw "start failed" }` (same subcommands;
+quote refs: `'@e3'`).
 
 ## 2. Drive with snapshots and refs
 
@@ -97,7 +100,9 @@ profiles unless the user asks (`bcli profile create NAME`).
 ## Fallback: bcli + CDP (no agent-web / own Playwright code)
 
 ```bash
-SESSION_JSON=$(bcli session create --wait)        # always one JSON object
+SID=""
+trap 'if [ -n "$SID" ]; then bcli session stop "$SID" >/dev/null; fi' EXIT
+SESSION_JSON=$(bcli session create --wait) || exit 1   # one JSON object; never use an id from a failed create
 SID=$(printf '%s' "$SESSION_JSON" | jq -r .id)
 export CDP_URL=$(printf '%s' "$SESSION_JSON" | jq -r .cdp_url)
 ```

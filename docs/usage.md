@@ -79,7 +79,7 @@ bcli session create --wait \
 | `--timezone` | `Europe/Berlin` | IANA time zone, e.g. `America/New_York` |
 | `--viewport` | `1920x1080` | Window size `WxH` |
 | `--seed` | random | Fingerprint seed — the same seed gives the same browser fingerprint |
-| `--ttl` | `60m` | Maximum lifetime (capped by your tenant's maximum session duration) |
+| `--ttl` | cloud: tenant maximum · local: `60m` | Maximum lifetime. In the cloud it defaults to — and is capped by — your tenant's maximum session duration (e.g. 24 h, see `bcli tenant`). |
 | `--idle-timeout` | `10m` | End the session this long after the last CDP client disconnected (max `1h`) |
 | `--proxy` | – | Proxy URL, or `none`. On the servas.ai cloud your sessions always use your tenant's exit node; proxy overrides are rejected there. Mainly for local mode and self-hosted installations. |
 
@@ -182,11 +182,11 @@ session. Exit code 12 means the human closed the window, 3 means no window can b
 |---|---|---|
 | Ready without connect | 5 min | A session nobody ever connects to ends 5 minutes after it became ready |
 | Idle | 10 min (`--idle-timeout`, max 1 h) | After the last CDP client disconnects, the session ends when the idle timer runs out |
-| TTL | 60 min (`--ttl`) | Hard end, capped by your tenant's maximum session duration |
+| TTL | cloud: your tenant's maximum session duration (e.g. 24 h) · local daemon: 60 min (`--ttl`) | Hard end; in the cloud `--ttl` can only shorten it |
 
 So: connect within 5 minutes, and **always** `bcli session stop <id>` when you are done — running sessions count
 against your tenant's concurrency limit. `terminate_reason` tells you why a session ended (`client_stop`,
-`idle_timeout`, `ttl_expired`).
+`idle_timeout`, `ttl_expired`, or `provision_failed` for a session that never became ready — see its `failure_code`).
 
 ## Profiles: persistent logins
 
@@ -300,55 +300,116 @@ bcli --env local session stop <id>
 bcli daemon stop
 ```
 
+If the daemon is not running, local commands fail with `daemon_unavailable` (exit code 5).
+
 **Browser.** Local sessions need a Chromium-based browser executable:
 
 - **Windows:** Microsoft Edge or Google Chrome in their standard install locations are used automatically.
 - **Linux and macOS:** set `browser_path` in [`config.yaml`](configuration.md#configyaml-reference) or the
   `BAAS_BROWSER_PATH` environment variable to the browser executable, e.g.
-  `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`.
+  `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`. On macOS the
+  [bundle installer](installation.md#local-mode-on-macos-optional) runs the daemon as a LaunchAgent.
 
 Local sessions open a real browser window on your desktop. Persistent profiles work locally too; tunnels are not
 needed. Daemon state lives in `~/.bcli/` (`BCLI_HOME`).
+
+### Windows notes
+
+- **Same logon session, not elevated.** The daemon and the vault talk over named pipes that belong to your Windows
+  logon session. Start `bcli daemon start`, `bcli vault attach` and your agent from normal, **non-elevated** terminals
+  in the same desktop session. An "Run as administrator" shell, a different user, or an SSH login into the machine
+  cannot reach them (bcli refuses elevated tokens on purpose).
+- **"Disable developer mode extensions" in Edge.** Every local session loads bcli's credential extension unpacked, so
+  Microsoft Edge shows a "Disable developer mode extensions" pop-up each time a session window opens. This is expected. Close
+  it with the **×** (do **not** choose "Turn off", or the vault cannot fill logins in that session). Google Chrome
+  does not show it.
 
 ## Credential vault
 
 bcli has a local, encrypted credential vault. A browser extension that bcli installs into its local sessions fills
 usernames, passwords and TOTP codes **into the page** — the agent references an entry by id and never sees the secret.
 
+The vault is served to the browser by **`bcli vault attach`**: it unlocks the vault with your passphrase and keeps
+running while you (or your agent) work. Without a running attach, vault commands fail with exit code 7 (locked) or
+8 (not attached).
+
+### Local sessions
+
+**1. Set the passphrase without echoing it** (the first unlock creates the vault with this passphrase):
+
 ```bash
-# unlock (the first unlock creates the vault); the passphrase comes from BCLI_VAULT_PASSPHRASE
-read -rs BCLI_VAULT_PASSPHRASE && export BCLI_VAULT_PASSPHRASE
-bcli vault unlock
-bcli vault status
+# bash / zsh
+read -rsp "Vault passphrase: " BCLI_VAULT_PASSPHRASE && echo && export BCLI_VAULT_PASSPHRASE
+```
 
-# add a credential – secrets are passed by environment variable name, never as arguments
-read -rs SHOP_PW && export SHOP_PW
+```powershell
+# PowerShell
+$p = Read-Host "Vault passphrase" -AsSecureString
+$env:BCLI_VAULT_PASSPHRASE = [System.Net.NetworkCredential]::new("", $p).Password
+```
+
+**2. Unlock and attach** — in that same terminal, and keep it open:
+
+```bash
+bcli vault unlock            # creates the vault on first use; exit 7 = wrong passphrase
+bcli --env local vault attach  # serves the vault to local sessions; keep running (Ctrl-C to end)
+```
+
+Close the terminal (or `Remove-Item Env:BCLI_VAULT_PASSPHRASE` / `unset BCLI_VAULT_PASSPHRASE`) when you are done, so
+the passphrase does not linger in the environment.
+
+**3. Store credentials** — from a second terminal. Secrets are passed by environment variable **name**, never as
+arguments:
+
+```bash
+# bash / zsh
+read -rsp "Password: " SHOP_PW && echo && export SHOP_PW
 bcli vault create --name shop --url https://shop.example.com/login --user me@example.com --password-env SHOP_PW
-# optional 2FA: --totp-env VAR where VAR holds an otpauth:// URI
+unset SHOP_PW
+# optional 2FA: --totp-env VAR, where VAR holds an otpauth:// URI
+```
 
+```powershell
+# PowerShell
+$pw = Read-Host "Password" -AsSecureString
+$env:SHOP_PW = [System.Net.NetworkCredential]::new("", $pw).Password
+bcli vault create --name shop --url https://shop.example.com/login --user me@example.com --password-env SHOP_PW
+Remove-Item Env:SHOP_PW
+```
+
+**4. Fill** — the agent only needs ids:
+
+```bash
 bcli vault list --url https://shop.example.com/login    # entries for this page (no secrets)
 bcli vault get <id>                                     # metadata only
 bcli vault tabs                                         # tab ids and URLs of the local session
 bcli vault autofill <id> --tab active --submit          # fill (and submit) the login form
 bcli vault totp <id>                                    # current TOTP code
+bcli vault status
 ```
 
 The vault only fills a credential into a page whose origin matches the stored URL.
 
-**Cloud sessions.** To fill credentials from your local vault into a cloud session, keep an attach running, then use
-the same `vault` commands:
+### Cloud sessions
+
+<!-- verify after rc.2 -->
+To fill credentials from your local vault into a **cloud** session, attach the vault to that session — with the
+passphrase set as in step 1 — and keep the attach running:
 
 ```bash
-bcli vault attach --session <id>     # keep running in a second terminal
-bcli vault tabs
-bcli vault autofill <id> --tab active --submit
+bcli vault attach --session <id>                 # terminal 1: unlock + pinned tunnel to the session; keep running
+bcli vault tabs                                  # terminal 2: tabs of the cloud session
+bcli vault autofill <entry-id> --tab active --submit
 ```
+
+The attach ends with the session, with Ctrl-C, or after its time limit (exit code 6); start it again if needed. The
+credential travels only through the session's pinned tunnel and is filled by the extension inside the cloud browser.
 
 **Passkeys.** `bcli vault passkey list` lists stored passkeys; `bcli vault passkey allow-create --rp example.com`
 allows one passkey registration for a relying party within a short window (`--ttl`, default 5 minutes).
 
-Vault exit codes: `7` vault locked or missing · `8` no vault attached to the session · `9` page origin does not match the
-credential · `10` no login form found or fill incomplete.
+Vault exit codes: `7` vault locked, missing or wrong passphrase · `8` no vault attached to the session · `9` page
+origin does not match the credential · `10` no login form found or fill incomplete.
 
 ## Output and scripting
 
@@ -358,16 +419,21 @@ credential · `10` no login form found or fill incomplete.
 - Every failure has a stable [exit code](#exit-codes).
 
 ```bash
-SID=$(bcli session create --wait | jq -r .id)
-export CDP_URL=$(bcli session url "$SID")
-trap 'bcli session stop "$SID" >/dev/null' EXIT
+set -euo pipefail
+SID=""
+trap 'if [ -n "$SID" ]; then bcli session stop "$SID" >/dev/null; fi' EXIT   # only stop what was created
+SESSION_JSON=$(bcli session create --wait) || exit 1                # check the exit code before using the id
+SID=$(printf '%s' "$SESSION_JSON" | jq -r .id)
+export CDP_URL=$(printf '%s' "$SESSION_JSON" | jq -r .cdp_url)
 node my-script.mjs
 ```
 
 PowerShell:
 
 ```powershell
-$s = bcli session create --wait | ConvertFrom-Json
+$json = bcli session create --wait
+if ($LASTEXITCODE -ne 0) { throw "session create failed (exit $LASTEXITCODE)" }
+$s = $json | ConvertFrom-Json
 $env:CDP_URL = $s.cdp_url
 try { node my-script.mjs } finally { bcli session stop $s.id | Out-Null }
 ```
@@ -377,14 +443,14 @@ try { node my-script.mjs } finally { bcli session stop $s.id | Out-Null }
 | Code | Meaning | What to do |
 |---:|---|---|
 | 0 | Success | |
-| 1 | Generic error; for a failed session see `failure_reason` | Read the message |
+| 1 | Generic error; for a failed session see `failure_reason`. Also `exit_node_unavailable` on create: your tenant's exit node is offline | Read the message; for `exit_node_unavailable` start your exit node |
 | 2 | `unauthorized` | Sign in again; check that your account has access |
 | 3 | `quota_exceeded` | Stop sessions or profiles you no longer need (`bcli tenant`) |
 | 4 | `profile_locked` — the profile is open in another session | Reuse or stop that session |
 | 5 | No capacity (`capacity_unavailable`, `no_capacity`, `no_gpu`) or the local daemon is not running (`daemon_unavailable`) | Retry later, drop `--gpu`, or `bcli daemon start` |
 | 6 | `--wait` timed out | Check `bcli session get <id>`; raise `--ready-timeout` |
-| 7 | Vault locked or missing | `bcli vault unlock` |
-| 8 | No vault attached to the cloud session | `bcli vault attach --session <id>` |
+| 7 | Vault locked, missing or wrong passphrase | Set `BCLI_VAULT_PASSPHRASE`, `bcli vault unlock`, keep `bcli vault attach` running |
+| 8 | No vault attached | `bcli vault attach` (local) or `bcli vault attach --session <id>` (cloud) |
 | 9 | Page origin does not match the credential | Check the URL of the entry |
 | 10 | Autofill incomplete or no login form found | Check the tab and page |
 | 11 | `profile_host_offline` — the host that stores the profile is offline | Retry later; the profile itself is fine |
@@ -392,8 +458,10 @@ try { node my-script.mjs } finally { bcli session stop $s.id | Out-Null }
 | 13 | The device code expired (`device_code_expired`) | Run `bcli login` again and finish within the time shown |
 | 15 | Not signed in (`auth_required`) | `bcli login` |
 
-Failed sessions carry a stable `failure_code`: `no_capacity`, `no_gpu`, `profile_host_offline`, `ready_timeout`,
-`provision_error`, `gpu_profile_home`.
+Failed sessions carry `terminate_reason: provision_failed` and a stable `failure_code`: `no_capacity`, `no_gpu`,
+`profile_host_offline`, `ready_timeout`, `provision_error`, `gpu_profile_home`. Errors that the API rejects before a
+session exists — such as `exit_node_unavailable`, `quota_exceeded` or `profile_locked` — are not failure codes: they
+are printed as `code=…` on stderr and set the exit code, and no session id is returned.
 
 ## Command reference
 
@@ -426,7 +494,7 @@ bcli assist --session ID [--mode captcha|window] [--rect x,y,w,h] [--heading TEX
 bcli daemon start [--detach] | run | status | stop
 bcli vault status | unlock | list [--url URL] | get ID | create … | totp ID | tabs
 bcli vault autofill ID [--tab ID|active] [--url URL] [--fields a,b] [--submit]
-bcli vault attach --session ID
+bcli vault attach [--session ID]
 bcli vault passkey list | allow-create --rp RP [--ttl D]
 
 Global flags: --env NAME, --json

@@ -1,10 +1,12 @@
-<#
+﻿<#
 .SYNOPSIS
   agent-web - a browser for coding agents, on top of bcli (servas.ai Browser as a Service).
 
 .DESCRIPTION
   Windows version of bin/agent-web with the same subcommands and output:
   `start` prints ONLY the session id on stdout; hints go to stderr.
+  Call it through agent-web.cmd (same folder), which runs this file with
+  -ExecutionPolicy Bypass, so it also works where the execution policy is Restricted.
   Docs: https://github.com/servas-ai/bcli-public/blob/main/docs/agents.md
 
 .EXAMPLE
@@ -54,6 +56,8 @@ Environment:
   AGENT_WEB_AGENT_BROWSER  agent-browser executable (default: agent-browser on PATH)
   AGENT_WEB_IDLE_TIMEOUT   idle timeout for new sessions (default: 30m)
   AGENT_WEB_STATE          state directory (default: %USERPROFILE%\.bcli\agent-web)
+
+Windows: run it as 'agent-web' (agent-web.cmd starts agent-web-ps.ps1).
 
 Exit codes: those of bcli (e.g. 3 quota, 4 profile locked, 5 no capacity, 15 not signed in);
 64 usage error; 69 a required tool is missing.
@@ -136,7 +140,7 @@ function Start-Session([string[]]$Rest) {
   $detail = $kind
   if ($profileName) { $detail += ", profile $profileName" }
   if ($gpu) { $detail += ', gpu' }
-  Write-Hint "session ready ($detail). Next: agent-web ab $($session.id) open <url> · agent-web stop $($session.id) when done"
+  Write-Hint "session ready ($detail). Next: agent-web ab $($session.id) open <url>; agent-web stop $($session.id) when done"
 }
 
 function Invoke-Ab([string[]]$Rest) {

@@ -15,7 +15,8 @@ instead, and never call `agent-browser` directly against a session.
 **Loop (agent-web, primary):**
 
 ```bash
-SID=$(agent-web start)                       # stdout = session id only; add PROFILE, --gpu or bcli flags as needed
+SID=$(agent-web start) || exit 1             # stdout = session id only; non-zero exit = no session, report it
+# add PROFILE, --gpu or bcli flags as needed
 agent-web ab "$SID" open https://example.com
 agent-web ab "$SID" snapshot -i              # refs @e1, @e2, … ; re-snapshot after every navigation
 agent-web ab "$SID" click @e3                # fill @e2 "text" · press Enter · get text body · screenshot x.png
@@ -31,10 +32,12 @@ agent-web stop "$SID"                        # always, also after errors
 **Fallback (own Playwright/Puppeteer code):**
 
 ```bash
-SESSION_JSON=$(bcli session create --wait)                 # JSON: id, state, cdp_url, cdp_ws_url, view_url
+set -euo pipefail
+SID=""
+trap 'if [ -n "$SID" ]; then bcli session stop "$SID" >/dev/null; fi' EXIT
+SESSION_JSON=$(bcli session create --wait) || exit 1       # JSON: id, state, cdp_url, cdp_ws_url, view_url
 SID=$(printf '%s' "$SESSION_JSON" | jq -r .id)
 export CDP_URL=$(printf '%s' "$SESSION_JSON" | jq -r .cdp_url)
-trap 'bcli session stop "$SID" >/dev/null' EXIT
 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 node e2e.mjs            # chromium.connectOverCDP(process.env.CDP_URL)
 ```
 

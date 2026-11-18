@@ -3,7 +3,7 @@
 All notable changes to bcli are listed here. Releases and binaries:
 [github.com/servas-ai/bcli-public/releases](https://github.com/servas-ai/bcli-public/releases).
 
-## v0.14.0-rc.1 — first public release candidate
+## v0.14.0-rc.2 — first public release candidate
 
 First public build of bcli for Linux, macOS and Windows.
 
@@ -16,7 +16,7 @@ First public build of bcli for Linux, macOS and Windows.
 - **Local credential vault and browser extension:** encrypted local vault (`bcli vault …`) whose bundled extension
   fills usernames, passwords and TOTP codes into the page without exposing them to the agent; `vault attach` brings the
   vault to cloud sessions.
-- **agent-web** (`bin/agent-web` for Linux/macOS, `bin/agent-web.ps1` + `agent-web.cmd` for Windows): starts
+- **agent-web** (`bin/agent-web` for Linux/macOS, `bin/agent-web.cmd` + `bin/agent-web-ps.ps1` for Windows): starts
   sessions and drives them with the open-source agent-browser CLI (snapshots and element refs), human hand-over via
   `captcha`/`assist`/`view`, tunnels, audio and stop — the recommended path for coding agents.
 - **Public release repository** with installation guides, configuration and usage documentation, a ready-made agent
@@ -35,3 +35,5 @@ First public build of bcli for Linux, macOS and Windows.
 ### Notes
 
 - The macOS binary is not notarized and the Windows binary is not Authenticode-signed; verify checksums before use.
+- Windows has no self-update yet: re-run the installer to update.
+- In the cloud the default session TTL is the tenant's maximum session duration; local daemon sessions default to 60 minutes.

@@ -3,7 +3,7 @@
 #
 # Starts a bcli browser session, lets an agent drive it with the agent-browser CLI over CDP,
 # hands it to a human when needed, and stops it again. Linux and macOS (bash 3.2+).
-# Windows: bin/agent-web.ps1 (same subcommands, same output).
+# Windows: bin/agent-web.cmd + bin/agent-web-ps.ps1 (same subcommands, same output).
 #
 # Docs: https://github.com/servas-ai/bcli-public/blob/main/docs/agents.md
 set -euo pipefail
@@ -162,7 +162,7 @@ cmd_start() {
   mkdir -p "$STATE"
   printf 'env=%s\nkind=%s\n' "$env" "$kind" >"$(state_file "$sid")"
   echo "$sid"
-  echo "agent-web: session ready ($kind${profile:+, profile $profile}${gpu:+, gpu}). Next: agent-web ab $sid open <url> · agent-web stop $sid when done" >&2
+  echo "agent-web: session ready ($kind${profile:+, profile $profile}${gpu:+, gpu}). Next: agent-web ab $sid open <url>; agent-web stop $sid when done" >&2
 }
 
 cmd_ab() {

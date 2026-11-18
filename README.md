@@ -91,7 +91,7 @@ No VPN, no Kubernetes, no proxy contracts and no browser updates on your side. A
 | **Audio** | `bcli audio attach` streams the session's speaker and microphone as PCM, e.g. for voice agents. |
 | **Local mode** | `bcli daemon` runs the same session API on your own machine. Same commands, same JSON. |
 | **Agent-first CLI** | Stable JSON on stdout, stable exit codes, ready-made [agent skills](skills/bcli/SKILL.md). |
-| **Signed self-update** | `bcli update` verifies the Ed25519-signed release checksums before replacing itself. |
+| **Signed self-update** | `bcli update` verifies the Ed25519-signed release checksums before replacing itself (Linux and macOS). |
 | **Operated in the EU** | The servas.ai cloud runs in Austria on its own hardware. Sign-in uses OIDC (`auth.servas.ai`); API keys are deprecated. |
 
 ## Install
@@ -105,35 +105,37 @@ Full details, upgrade and uninstall steps: **[docs/installation.md](docs/install
 | Linux ARM64 | `bcli-linux-arm64` | ✅ | ✅ |
 | macOS Apple silicon | `bcli-darwin-arm64` | ✅ | ✅ |
 | Windows x86-64 | `bcli-windows-amd64.exe` | ✅ | ✅ |
-| Windows ARM64 | `bcli-windows-arm64.exe` (when published) | ✅ | ✅ |
+| Windows ARM64 | `bcli-windows-arm64.exe` ¹ | ✅ | ✅ |
 
 Local mode needs a Chromium-based browser on the machine; see [Local mode](docs/usage.md#local-mode).
-Intel Macs are not supported.
+Intel Macs are not supported. ¹ Windows ARM64 has no native helper window (`bcli assist`, `agent-web captcha`).
+Self-update is available on Linux and macOS; on Windows, re-run the installer to update.
 
-Set the release you want to install (see [Releases](https://github.com/servas-ai/bcli-public/releases)):
+Each snippet sets the release to install once at the top (`VERSION=` / `$Version =`); pick it from
+[Releases](https://github.com/servas-ai/bcli-public/releases).
 
 <details open>
 <summary><strong>Linux</strong> (amd64 / arm64)</summary>
 
 ```bash
-VERSION=v0.14.0-rc.1
+VERSION=v0.14.0-rc.2                       # the release to install
 ARCH=$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 BASE=https://github.com/servas-ai/bcli-public/releases/download/$VERSION
 curl -fsSLO "$BASE/bcli-linux-$ARCH"
 curl -fsSLO "$BASE/SHA256SUMS"
 grep " bcli-linux-$ARCH\$" SHA256SUMS | sha256sum --check -
 install -D -m 0755 "bcli-linux-$ARCH" "$HOME/.local/bin/bcli"
+case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *)       # fresh logins may lack ~/.local/bin
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc; export PATH="$HOME/.local/bin:$PATH" ;; esac
 bcli version
 ```
-
-Make sure `~/.local/bin` is on your `PATH`.
 </details>
 
 <details>
 <summary><strong>macOS</strong> (Apple silicon)</summary>
 
 ```bash
-VERSION=v0.14.0-rc.1
+VERSION=v0.14.0-rc.2                       # the release to install
 BASE=https://github.com/servas-ai/bcli-public/releases/download/$VERSION
 curl -fsSLO "$BASE/bcli-darwin-arm64"
 curl -fsSLO "$BASE/SHA256SUMS"
@@ -141,19 +143,20 @@ grep " bcli-darwin-arm64\$" SHA256SUMS | shasum -a 256 --check -
 mkdir -p "$HOME/.local/bin"
 install -m 0755 bcli-darwin-arm64 "$HOME/.local/bin/bcli"
 xattr -d com.apple.quarantine "$HOME/.local/bin/bcli" 2>/dev/null || true
+case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *)
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc; export PATH="$HOME/.local/bin:$PATH" ;; esac
 bcli version
 ```
 
 The binary is not notarized by Apple. Files downloaded with a browser carry the quarantine flag and Gatekeeper
-blocks them; the `xattr` line removes it after you verified the checksum. Add `~/.local/bin` to your `PATH`
-(`echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc`).
+blocks them; the `xattr` line removes it after you verified the checksum.
 </details>
 
 <details>
 <summary><strong>Windows</strong> (PowerShell)</summary>
 
 ```powershell
-$Version = "v0.14.0-rc.1"
+$Version = "v0.14.0-rc.2"                  # the release to install
 $Base    = "https://github.com/servas-ai/bcli-public/releases/download/$Version"
 $Dir     = "$env:LOCALAPPDATA\Programs\bcli"
 New-Item -ItemType Directory -Force -Path $Dir | Out-Null
@@ -164,11 +167,13 @@ $actual   = (Get-FileHash "$Dir\bcli.exe" -Algorithm SHA256).Hash.ToLower()
 if ($actual -ne $expected) { throw "Checksum mismatch – do not run this file." }
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 if ($userPath -notlike "*$Dir*") { [Environment]::SetEnvironmentVariable("Path", "$userPath;$Dir", "User") }
-& "$Dir\bcli.exe" version
+if ($env:Path -notlike "*$Dir*") { $env:Path += ";$Dir" }
+bcli version
 ```
 
-Open a new terminal afterwards so the updated `PATH` applies. SmartScreen may warn about an unknown publisher on first
-run; verify the checksum, then choose **More info → Run anyway**.
+Use a normal (non-elevated) PowerShell window. SmartScreen may warn about an unknown publisher on first run; verify
+the checksum, then choose **More info → Run anyway**. Windows on ARM: see
+[installation.md](docs/installation.md#windows).
 </details>
 
 **Verify what you downloaded.** Always compare the binary against `SHA256SUMS` before running it (the commands above do).
@@ -219,7 +224,7 @@ PowerShell for Windows) that combines bcli with the open-source
 no Playwright code needed:
 
 ```bash
-SID=$(agent-web start)                         # prints only the session id
+SID=$(agent-web start) || exit 1               # prints only the session id
 agent-web ab "$SID" open https://example.com
 agent-web ab "$SID" snapshot -i                # accessibility tree with refs (@e1, @e2, …)
 agent-web ab "$SID" click @e3
@@ -276,8 +281,9 @@ do for real users.
 <summary><strong>What happens when my script ends?</strong></summary>
 
 `browser.close()` after `connectOverCDP` only disconnects. The session ends when you run `bcli session stop`, after
-10 minutes without a CDP connection, 5 minutes after start if nobody ever connects, or when its TTL (default 60 minutes)
-expires. Stop what you start.
+10 minutes without a CDP connection, 5 minutes after start if nobody ever connects, or when its TTL expires. In the
+cloud the default TTL is your tenant's maximum session duration (for example 24 hours, see `bcli tenant`); local
+daemon sessions default to 60 minutes. Stop what you start.
 </details>
 
 <details>

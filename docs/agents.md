@@ -10,20 +10,22 @@ bcli was designed to be driven by AI agents as much as by people:
 
 ## agent-web
 
-`agent-web` ([bin/agent-web](../bin/agent-web) for Linux/macOS, [bin/agent-web.ps1](../bin/agent-web.ps1) for Windows)
+`agent-web` ([bin/agent-web](../bin/agent-web) for Linux/macOS, [bin/agent-web.cmd](../bin/agent-web.cmd) + [bin/agent-web-ps.ps1](../bin/agent-web-ps.ps1) for Windows)
 is the recommended way for an agent to use a browser. It wraps bcli and the open-source
 [agent-browser](https://www.npmjs.com/package/agent-browser) CLI, so the agent navigates with page snapshots and element
 refs instead of writing Playwright code. [Install it](installation.md#agent-web-helper) next to bcli.
 
 ```bash
-SID=$(agent-web start)                          # stdout: only the session id; hints on stderr
+set -euo pipefail
+SID=$(agent-web start) || exit 1                # stdout: only the session id; hints on stderr
+trap 'if [ -n "$SID" ]; then agent-web stop "$SID"; fi' EXIT
 agent-web ab "$SID" open https://example.com
 agent-web ab "$SID" snapshot -i                 # interactive elements with refs @e1, @e2, …
 agent-web ab "$SID" fill @e2 "search text"
 agent-web ab "$SID" click @e3
 agent-web ab "$SID" get text body
 agent-web ab "$SID" screenshot page.png
-agent-web stop "$SID"                           # always
+# agent-web stop "$SID" runs from the trap, also after errors
 ```
 
 | Command | What it does |
@@ -104,10 +106,12 @@ laptop or phone.
 If you prefer your own Playwright or Puppeteer code, or cannot install agent-browser:
 
 ```bash
-SESSION_JSON=$(bcli session create --wait)
+set -euo pipefail
+SID=""
+trap 'if [ -n "$SID" ]; then bcli session stop "$SID" >/dev/null; fi' EXIT
+SESSION_JSON=$(bcli session create --wait) || exit 1       # never use an id from a failed create
 SID=$(printf '%s' "$SESSION_JSON" | jq -r .id)
 export CDP_URL=$(printf '%s' "$SESSION_JSON" | jq -r .cdp_url)
-trap 'bcli session stop "$SID" >/dev/null' EXIT
 
 node agent-task.mjs          # chromium.connectOverCDP(process.env.CDP_URL)
 ```

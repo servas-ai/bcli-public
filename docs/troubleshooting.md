@@ -61,6 +61,15 @@ No environment is selected. `bcli env list`, then `bcli env use NAME` or pass `-
 bcli is talking to the local daemon (no cloud environment selected, or `--env local`) and the daemon is not running.
 Either select the cloud (`bcli env use cloud`) or start the daemon (`bcli daemon start`).
 
+**Windows: `daemon_unavailable` although the daemon runs**
+The daemon and the vault are only reachable from the same Windows logon session, from non-elevated processes. A
+terminal opened with "Run as administrator", another user account or an SSH login cannot reach them. Use a normal
+terminal on the desktop where you started the daemon.
+
+**`env list` shows a bad or unknown status before the first login**
+Before `bcli login`, `env list` cannot authenticate to the server. Current releases show this as `bad-key`; it is
+expected and goes away after `bcli login`. <!-- verify after rc.2: will read "not logged in" -->
+
 **`env list` shows the environment as unreachable**
 Check your network and proxy: `curl -sS https://api.baas.servas.ai/v1/health` must return JSON with `"status":"ok"`.
 Corporate proxies must allow HTTPS and WebSocket (`wss://`) traffic to `*.baas.servas.ai` and `auth.servas.ai`.
@@ -85,10 +94,17 @@ The session did not become ready within `--ready-timeout` (default 5 minutes). C
 The host that stores this profile is temporarily offline. Retry later — the profile itself is fine. Do not delete or
 recreate it.
 
-**Session fails with `exit_node_unavailable` or similar**
-Your tenant's exit node is offline. Sessions never fall back to another route. If you run your own exit node, check it
-with `docker logs baas-exit` and restart it (`./up.sh` in the
-[baas-exit-docker](https://github.com/servas-ai/baas-exit-docker) folder).
+**`code=exit_node_unavailable` on `session create` (exit code 1)**
+Your tenant's exit node is offline, so the API refuses to create the session (no session id is returned — this is an
+error, not a `failure_code`). Sessions never fall back to another route. Start your exit node: check it with
+`docker logs baas-exit` and run `./up.sh` again in the
+[baas-exit-docker](https://github.com/servas-ai/baas-exit-docker) folder (no new key needed after the first
+enrollment). `bcli exit-node list` and the console (**Tenant & exit keys → Refresh status**) show when it is online
+again. If you do not run an exit node yourself, contact your tenant administrator.
+
+**Session `failed` with `failure_code: ready_timeout`**
+The browser did not become ready in time (`terminate_reason: provision_failed`). This is usually transient: stop it
+if it is still listed and create a new session. If it keeps happening, retry later and report the session id.
 
 **The session disappeared after a few minutes**
 `terminate_reason` in `bcli session get <id> --json` tells you why:
@@ -135,6 +151,10 @@ session, create a new one, and report it if it happens again.
 
 ## Local mode
 
+**Windows: Edge shows "Disable developer mode extensions"**
+Expected for every local session: bcli loads its credential extension unpacked. Close the pop-up with **×**; do not
+choose "Turn off", otherwise the vault cannot fill logins in that session.
+
 **Local session does not start / no browser found**
 Set the browser executable: `browser_path` in `~/.config/bcli/config.yaml` or `BAAS_BROWSER_PATH`. On Windows, install
 Microsoft Edge or Google Chrome in the default location.
@@ -143,16 +163,22 @@ Microsoft Edge or Google Chrome in the default location.
 Restart it: `bcli daemon stop && bcli daemon start`.
 
 **Vault: exit code 7**
-The vault is locked or does not exist yet: `bcli vault unlock` (with `BCLI_VAULT_PASSPHRASE` set).
+The vault is locked, does not exist yet, or the passphrase is wrong. Set `BCLI_VAULT_PASSPHRASE` (without echo, see
+[Credential vault](usage.md#credential-vault)), run `bcli vault unlock`, and keep `bcli vault attach` running.
 
-**Vault: exit code 8 in a cloud session**
-No vault is attached to that session. Keep `bcli vault attach --session <id>` running in another terminal.
+**Vault: exit code 8**
+No vault is attached. Keep `bcli --env local vault attach` (local sessions) or `bcli vault attach --session <id>`
+(cloud sessions) running in another terminal of the same logon session.
 
 **Vault: exit code 9 / 10**
 9: the page's origin does not match the URL stored with the credential. 10: no login form was found or not all fields
 could be filled — check that the right tab is active (`bcli vault tabs`) and the login form is visible.
 
 ## Updates
+
+**Windows: `bcli update` does not update**
+Self-update is not available on Windows yet. Run the [Windows installation](installation.md#windows) again with the
+new version.
 
 **`bcli update` refuses to install**
 bcli only installs builds whose checksum list is signed by the servas.ai release key and never downgrades. A

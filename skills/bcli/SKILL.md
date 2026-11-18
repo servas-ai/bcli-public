@@ -65,10 +65,11 @@ came from.
 Captcha, second factor, consent dialog or a decision only a person can make:
 
 ```bash
-agent-web captcha "$SID"                   # or: agent-web assist "$SID" "Enter the SMS code"
+agent-web captcha "$SID"                   # or: agent-web assist "$SID" "Enter the SMS code"   (Linux/macOS)
 ```
 
-It opens a small window on the user's desktop and **waits for the human** — run it in the background / as a monitor,
+On Windows `captcha`/`assist` are not available: go straight to `agent-web view "$SID"` (below).
+Otherwise it opens a small window on the user's desktop and **waits for the human** — run it in the background / as a monitor,
 then re-check the page with `snapshot -i`. If it exits with 3 (no window possible here), run `agent-web view "$SID"`
 to open the live view in the user's browser, or `agent-web view "$SID" --print` and give that URL **only** to the user
 in your direct reply (it contains an access token; never write it to files, commits, tickets or logs).

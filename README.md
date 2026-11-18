@@ -88,7 +88,7 @@ No VPN, no Kubernetes, no proxy contracts and no browser updates on your side. A
 | **localhost in the cloud** | `bcli tunnel start --ports 3000` makes your dev server reachable as `http://localhost:3000` inside the remote browser. |
 | **Credentials without exposure** | The local vault and the bundled credential extension fill usernames, passwords, TOTP codes and passkeys into the page. The agent only references an entry id; it never reads the secret. |
 | **GPU sessions** | `--gpu` for WebGL, canvas-heavy apps and video. |
-| **Audio** | `bcli audio attach` streams the session's speaker and microphone as PCM, e.g. for voice agents. |
+| **Audio** | `bcli audio attach` streams the session's speaker and microphone as PCM, e.g. for voice agents (Linux, macOS). |
 | **Local mode** | `bcli daemon` runs the same session API on your own machine. Same commands, same JSON. |
 | **Agent-first CLI** | Stable JSON on stdout, stable exit codes, ready-made [agent skills](skills/bcli/SKILL.md). |
 | **Signed self-update** | `bcli update` verifies the Ed25519-signed release checksums before replacing itself (Linux and macOS). |
@@ -108,7 +108,9 @@ Full details, upgrade and uninstall steps: **[docs/installation.md](docs/install
 | Windows ARM64 | `bcli-windows-arm64.exe` ¹ | ✅ | ✅ |
 
 Local mode needs a Chromium-based browser on the machine; see [Local mode](docs/usage.md#local-mode).
-Intel Macs are not supported. ¹ Windows ARM64 has no native helper window (`bcli assist`, `agent-web captcha`).
+Intel Macs are not supported. On Windows, `bcli assist` and `bcli audio` are not available; use the live view for
+human hand-over. ¹ Windows ARM64 has no native dialog window. The macOS build of this release candidate has not yet
+been run on Apple silicon (preview).
 Self-update is available on Linux and macOS; on Windows, re-run the installer to update.
 
 Each snippet sets the release to install once at the top (`VERSION=` / `$Version =`); pick it from
@@ -228,7 +230,7 @@ SID=$(agent-web start) || exit 1               # prints only the session id
 agent-web ab "$SID" open https://example.com
 agent-web ab "$SID" snapshot -i                # accessibility tree with refs (@e1, @e2, …)
 agent-web ab "$SID" click @e3
-agent-web captcha "$SID"                       # a human solves a captcha in a small window
+agent-web captcha "$SID"                       # a human solves a captcha in a small window (Linux/macOS)
 agent-web stop "$SID"
 ```
 

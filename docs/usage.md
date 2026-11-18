@@ -172,7 +172,7 @@ for example to solve a captcha, approve a second factor or just watch your agent
 
 The [web console](https://console.baas.servas.ai) shows all your sessions as live thumbnails after signing in.
 
-On a desktop, `bcli assist --session <id>` opens a small native window with a region of the session's screen
+On a Linux or macOS desktop (not on Windows), `bcli assist --session <id>` opens a small native window with a region of the session's screen
 (`--mode captcha --rect x,y,w,h`) or the whole screen (`--mode window`); the human's clicks and keys go into the
 session. Exit code 12 means the human closed the window, 3 means no window can be shown on this machine.
 
@@ -272,6 +272,9 @@ fails with `no_gpu` (exit code 5). Retry later or run without `--gpu`.
 Each session has its own virtual speaker and microphone. `bcli audio attach` streams them as raw PCM
 (s16le, 48 kHz, 20 ms frames) — for voice agents, call bots or recordings.
 
+> [!NOTE]
+> `bcli audio` is available on Linux and macOS, not on Windows.
+
 ```bash
 # record what the page plays (speaker only), stereo
 bcli audio attach --session <id> --dir out --channels 2 > speaker.pcm
@@ -294,13 +297,13 @@ exit codes are the same as in the cloud.
 ```bash
 bcli daemon start                     # or: bcli daemon run (foreground)
 bcli daemon status
-bcli env add local --kind local       # once
 bcli --env local session create --wait
 bcli --env local session stop <id>
 bcli daemon stop
 ```
 
-If the daemon is not running, local commands fail with `daemon_unavailable` (exit code 5).
+`--env local` works without any configuration. To make local the default, `bcli env add local --kind local` and
+`bcli env use local`. If the daemon is not running, local commands fail with `daemon_unavailable` (exit code 5).
 
 **Browser.** Local sessions need a Chromium-based browser executable:
 
@@ -311,55 +314,47 @@ If the daemon is not running, local commands fail with `daemon_unavailable` (exi
   [bundle installer](installation.md#local-mode-on-macos-optional) runs the daemon as a LaunchAgent.
 
 Local sessions open a real browser window on your desktop. Persistent profiles work locally too; tunnels are not
-needed. Daemon state lives in `~/.bcli/` (`BCLI_HOME`).
+needed. Daemon state lives in `~/.bcli/` (`BCLI_HOME`); the daemon log is `~/.bcli/daemon.log`.
 
 ### Windows notes
 
 - **Same logon session, not elevated.** The daemon and the vault talk over named pipes that belong to your Windows
-  logon session. Start `bcli daemon start`, `bcli vault attach` and your agent from normal, **non-elevated** terminals
-  in the same desktop session. An "Run as administrator" shell, a different user, or an SSH login into the machine
+  logon session. Run `bcli daemon start`, `bcli vault unlock` and your agent from normal, **non-elevated** terminals
+  in the same desktop session. A "Run as administrator" shell, a different user, or an SSH login into the machine
   cannot reach them (bcli refuses elevated tokens on purpose).
+- **Start bcli from a normal terminal, not from a scheduled task.** If bcli runs inside a Windows job that keeps its
+  child processes in the job (for example a Task Scheduler task), the browser extension refuses to fill credentials.
+  `bcli daemon start` warns about it, and the daemon log shows `reason=pipe_owner sub=job_contained`.
+- **No autostart.** There is no Windows service yet: after each logon run `bcli daemon start` (and `bcli vault unlock`
+  if you use the vault).
 - **"Disable developer mode extensions" in Edge.** Every local session loads bcli's credential extension unpacked, so
-  Microsoft Edge shows a "Disable developer mode extensions" pop-up each time a session window opens. This is expected. Close
-  it with the **×** (do **not** choose "Turn off", or the vault cannot fill logins in that session). Google Chrome
-  does not show it.
+  Microsoft Edge shows a "Disable developer mode extensions" pop-up each time a session window opens. This is
+  expected. Close it with the **×** (do **not** choose "Turn off", or the vault cannot fill logins in that session).
+  Google Chrome does not show it.
+- **Moving `bcli.exe`** is fine; it registers itself for the extension again on its next start.
+- **Not available on Windows:** `bcli assist` and `bcli audio`. Use the live view (`view_url`) to hand a session to a
+  human.
 
 ## Credential vault
 
-bcli has a local, encrypted credential vault. A browser extension that bcli installs into its local sessions fills
-usernames, passwords and TOTP codes **into the page** — the agent references an entry by id and never sees the secret.
+bcli has a local, encrypted credential vault. A browser extension built into bcli fills usernames, passwords and TOTP
+codes **into the page** — the agent references an entry by id and never sees the secret.
 
-The vault is served to the browser by **`bcli vault attach`**: it unlocks the vault with your passphrase and keeps
-running while you (or your agent) work. Without a running attach, vault commands fail with exit code 7 (locked) or
-8 (not attached).
+`bcli vault unlock` asks for your passphrase and then keeps the vault unlocked **in the background** until you run
+`bcli vault lock`, log out, or reboot. There is nothing else to keep running. Vault commands that need an unlocked vault
+exit with code 7 and tell you which command to run.
 
 ### Local sessions
 
-**1. Set the passphrase without echoing it** (the first unlock creates the vault with this passphrase):
-
 ```bash
-# bash / zsh
-read -rsp "Vault passphrase: " BCLI_VAULT_PASSPHRASE && echo && export BCLI_VAULT_PASSPHRASE
+bcli vault unlock      # prompts "Vault passphrase:" (no echo); the first unlock creates the vault
+bcli vault status      # absent | locked | unlocked
 ```
 
-```powershell
-# PowerShell
-$p = Read-Host "Vault passphrase" -AsSecureString
-$env:BCLI_VAULT_PASSPHRASE = [System.Net.NetworkCredential]::new("", $p).Password
-```
+The passphrase can also come from a pipe (first line of stdin) or from `BCLI_VAULT_PASSPHRASE`, e.g. in automation.
+Never put it on the command line.
 
-**2. Unlock and attach** — in that same terminal, and keep it open:
-
-```bash
-bcli vault unlock            # creates the vault on first use; exit 7 = wrong passphrase
-bcli --env local vault attach  # serves the vault to local sessions; keep running (Ctrl-C to end)
-```
-
-Close the terminal (or `Remove-Item Env:BCLI_VAULT_PASSPHRASE` / `unset BCLI_VAULT_PASSPHRASE`) when you are done, so
-the passphrase does not linger in the environment.
-
-**3. Store credentials** — from a second terminal. Secrets are passed by environment variable **name**, never as
-arguments:
+**Store credentials.** Secrets are passed by environment variable **name**, never as arguments:
 
 ```bash
 # bash / zsh
@@ -377,7 +372,7 @@ bcli vault create --name shop --url https://shop.example.com/login --user me@exa
 Remove-Item Env:SHOP_PW
 ```
 
-**4. Fill** — the agent only needs ids:
+**Fill** — the agent only needs ids:
 
 ```bash
 bcli vault list --url https://shop.example.com/login    # entries for this page (no secrets)
@@ -385,31 +380,33 @@ bcli vault get <id>                                     # metadata only
 bcli vault tabs                                         # tab ids and URLs of the local session
 bcli vault autofill <id> --tab active --submit          # fill (and submit) the login form
 bcli vault totp <id>                                    # current TOTP code
-bcli vault status
+bcli vault lock                                         # lock again when you are done
 ```
 
 The vault only fills a credential into a page whose origin matches the stored URL.
 
 ### Cloud sessions
 
-<!-- verify after rc.2 -->
-To fill credentials from your local vault into a **cloud** session, attach the vault to that session — with the
-passphrase set as in step 1 — and keep the attach running:
+To use your local vault in a **cloud** session, bind it to that session. bcli keeps the binding in the background and
+ends it quietly when the session ends:
 
 ```bash
-bcli vault attach --session <id>                 # terminal 1: unlock + pinned tunnel to the session; keep running
-bcli vault tabs                                  # terminal 2: tabs of the cloud session
-bcli vault autofill <entry-id> --tab active --submit
+bcli vault unlock --session <session-id>          # asks for the passphrase; prints "attached"
+bcli vault tabs --session <session-id>            # tabs of the cloud browser
+bcli vault list --session <session-id> --url https://shop.example.com/login
+bcli vault autofill <entry-id> --session <session-id> --tab active --submit
 ```
 
-The attach ends with the session, with Ctrl-C, or after its time limit (exit code 6); start it again if needed. The
-credential travels only through the session's pinned tunnel and is filled by the extension inside the cloud browser.
+`list`, `get`, `create`, `totp`, `tabs`, `autofill` and `passkey list|allow-create` all accept `--session`. Credentials
+travel only through the session's pinned tunnel and are filled by the extension inside the cloud browser.
 
 **Passkeys.** `bcli vault passkey list` lists stored passkeys; `bcli vault passkey allow-create --rp example.com`
 allows one passkey registration for a relying party within a short window (`--ttl`, default 5 minutes).
 
-Vault exit codes: `7` vault locked, missing or wrong passphrase · `8` no vault attached to the session · `9` page
-origin does not match the credential · `10` no login form found or fill incomplete.
+**Quiet by default.** Vault commands print only their result. For diagnostics set `BAAS_LOG_LEVEL=debug` (or `info`).
+
+Vault exit codes: `7` vault locked, missing or wrong passphrase (the message names the command to run) · `8` no vault
+bound to the session · `9` page origin does not match the credential · `10` no login form found or fill incomplete.
 
 ## Output and scripting
 
@@ -449,8 +446,8 @@ try { node my-script.mjs } finally { bcli session stop $s.id | Out-Null }
 | 4 | `profile_locked` — the profile is open in another session | Reuse or stop that session |
 | 5 | No capacity (`capacity_unavailable`, `no_capacity`, `no_gpu`) or the local daemon is not running (`daemon_unavailable`) | Retry later, drop `--gpu`, or `bcli daemon start` |
 | 6 | `--wait` timed out | Check `bcli session get <id>`; raise `--ready-timeout` |
-| 7 | Vault locked, missing or wrong passphrase | Set `BCLI_VAULT_PASSPHRASE`, `bcli vault unlock`, keep `bcli vault attach` running |
-| 8 | No vault attached | `bcli vault attach` (local) or `bcli vault attach --session <id>` (cloud) |
+| 7 | Vault locked, missing or wrong passphrase | `bcli vault unlock` (cloud: `bcli vault unlock --session <id>`) |
+| 8 | No vault bound to the cloud session | `bcli vault unlock --session <id>` |
 | 9 | Page origin does not match the credential | Check the URL of the entry |
 | 10 | Autofill incomplete or no login form found | Check the tab and page |
 | 11 | `profile_host_offline` — the host that stores the profile is offline | Retry later; the profile itself is fine |
@@ -488,14 +485,15 @@ bcli profile share NAME --user USER [--revoke]
 bcli exit-node list
 bcli tunnel start --session ID --ports P1,P2
 bcli tunnel connect --ws-url URL --token-file FILE|- --fingerprint FP --ports P1,P2
-bcli audio attach --session ID [--dir both|out|in] [--channels 1|2] [--socket PATH | --fifo DIR]
-bcli assist --session ID [--mode captcha|window] [--rect x,y,w,h] [--heading TEXT] [--hint TEXT]
+bcli audio attach --session ID [--dir both|out|in] [--channels 1|2] [--socket PATH | --fifo DIR]   (not on Windows)
+bcli assist --session ID [--mode captcha|window] [--rect x,y,w,h] [--heading TEXT] [--hint TEXT]  (not on Windows)
 
 bcli daemon start [--detach] | run | status | stop
-bcli vault status | unlock | list [--url URL] | get ID | create … | totp ID | tabs
-bcli vault autofill ID [--tab ID|active] [--url URL] [--fields a,b] [--submit]
-bcli vault attach [--session ID]
-bcli vault passkey list | allow-create --rp RP [--ttl D]
+bcli vault unlock [--session ID] | lock | status
+bcli vault list [--url URL] | get ID | create … | totp ID | tabs                      [--session ID]
+bcli vault autofill ID [--tab ID|active] [--url URL] [--fields a,b] [--submit]       [--session ID]
+bcli vault passkey list | allow-create --rp RP [--ttl D]                             [--session ID]
+bcli vault attach [--session ID]          (foreground variant of unlock; rarely needed)
 
 Global flags: --env NAME, --json
 ```

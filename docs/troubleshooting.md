@@ -66,9 +66,9 @@ The daemon and the vault are only reachable from the same Windows logon session,
 terminal opened with "Run as administrator", another user account or an SSH login cannot reach them. Use a normal
 terminal on the desktop where you started the daemon.
 
-**`env list` shows a bad or unknown status before the first login**
-Before `bcli login`, `env list` cannot authenticate to the server. Current releases show this as `bad-key`; it is
-expected and goes away after `bcli login`. <!-- verify after rc.2: will read "not logged in" -->
+**`env list` shows `not-logged-in`**
+You have not signed in to that environment yet: `bcli login --env NAME`. `bad-key` means a stored token or API key was
+rejected — sign in again.
 
 **`env list` shows the environment as unreachable**
 Check your network and proxy: `curl -sS https://api.baas.servas.ai/v1/health` must return JSON with `"status":"ok"`.
@@ -151,6 +151,16 @@ session, create a new one, and report it if it happens again.
 
 ## Local mode
 
+**Windows: filling is refused / `daemon start` warns about a Windows job**
+bcli runs inside a Windows job that keeps its child processes in the job — typically because it was started from Task
+Scheduler or another launcher. The browser extension then refuses to fill credentials, and `~/.bcli/daemon.log` shows
+`reason=pipe_owner sub=job_contained`. Stop the daemon (`bcli daemon stop`) and start it again from a normal,
+non-elevated terminal.
+
+**Windows: local sessions stopped working after moving `bcli.exe`**
+Moving the executable is supported: run `bcli daemon stop`, then start it from the new location
+(`bcli daemon start`); it registers itself for the extension again. Make sure `PATH` points to the new folder.
+
 **Windows: Edge shows "Disable developer mode extensions"**
 Expected for every local session: bcli loads its credential extension unpacked. Close the pop-up with **×**; do not
 choose "Turn off", otherwise the vault cannot fill logins in that session.
@@ -163,12 +173,16 @@ Microsoft Edge or Google Chrome in the default location.
 Restart it: `bcli daemon stop && bcli daemon start`.
 
 **Vault: exit code 7**
-The vault is locked, does not exist yet, or the passphrase is wrong. Set `BCLI_VAULT_PASSPHRASE` (without echo, see
-[Credential vault](usage.md#credential-vault)), run `bcli vault unlock`, and keep `bcli vault attach` running.
+The vault is locked, does not exist yet, or the passphrase is wrong; the message names the command to run. Local:
+`bcli vault unlock`. Cloud session: `bcli vault unlock --session <id>`. The unlock stays active in the background
+until `bcli vault lock`, logout or reboot (on Windows: per logon session, from a non-elevated terminal).
 
 **Vault: exit code 8**
-No vault is attached. Keep `bcli --env local vault attach` (local sessions) or `bcli vault attach --session <id>`
-(cloud sessions) running in another terminal of the same logon session.
+No vault is bound to that cloud session (or the binding ended with the session): `bcli vault unlock --session <id>`.
+
+**Vault: I need more detail**
+Vault commands are quiet by default. Run the failing command again with `BAAS_LOG_LEVEL=debug` and remove anything
+that contains `token=` before sharing the output.
 
 **Vault: exit code 9 / 10**
 9: the page's origin does not match the URL stored with the credential. 10: no login form was found or not all fields
@@ -177,8 +191,8 @@ could be filled — check that the right tab is active (`bcli vault tabs`) and t
 ## Updates
 
 **Windows: `bcli update` does not update**
-Self-update is not available on Windows yet. Run the [Windows installation](installation.md#windows) again with the
-new version.
+Expected: `bcli update` / `bcli update --check` print "self-update is not supported on Windows" and exit 0. Run the
+[Windows installation](installation.md#windows) again with the new version.
 
 **`bcli update` refuses to install**
 bcli only installs builds whose checksum list is signed by the servas.ai release key and never downgrades. A

@@ -33,10 +33,10 @@ agent-web ab "$SID" screenshot page.png
 | `agent-web start [--gpu] [--env NAME] [PROFILE] [bcli flags]` | Creates a session (`bcli session create --wait`, idle timeout 30 min) and prints only its id. `PROFILE` uses an existing bcli profile; other flags such as `--ttl 2h` or `--locale en-US` go to bcli. |
 | `agent-web ab SID ARGS…` | Runs `agent-browser ARGS…` against the session over CDP. Every agent-browser command works: `open`, `snapshot -i`, `click`, `fill`, `type`, `press`, `get`, `eval`, `screenshot`, `tab`, `wait`, … |
 | `agent-web view SID [--print]` | Opens the live view in the human's default browser (`--print` prints the URL — it contains an access token). |
-| `agent-web captcha SID [HINT]` | Opens a small native window with the session's screen; the human solves the captcha and closes the window. Run it in the background or as a monitor — it waits for the human. |
-| `agent-web assist SID [HINT]` | Same window for any other help: a second factor, a consent dialog, a decision. |
+| `agent-web captcha SID [HINT]` | *(Linux/macOS)* Opens a small native window with the session's screen; the human solves the captcha and closes the window. Run it in the background or as a monitor — it waits for the human. |
+| `agent-web assist SID [HINT]` | *(Linux/macOS)* Same window for any other help: a second factor, a consent dialog, a decision. |
 | `agent-web tunnel SID PORTS` | Your local ports (e.g. `3000,5173`) as `http://localhost:PORT` in the cloud browser. Blocks: run it in the background. |
-| `agent-web audio SID [flags]` | `bcli audio attach` for the session (speaker/microphone as PCM). Blocks. |
+| `agent-web audio SID [flags]` | *(Linux/macOS)* `bcli audio attach` for the session (speaker/microphone as PCM). Blocks. |
 | `agent-web stop SID` | Closes the agent-browser connection and stops the session. |
 | `agent-web status` | Your running sessions and the ones agent-web started. |
 
@@ -51,6 +51,8 @@ Behaviour and contract:
 - agent-web never prints session URLs except with `view --print`.
 - Exit codes are those of bcli (3 quota, 4 profile locked, 5 no capacity, 15 not signed in, …), plus 64 for usage
   errors and 69 when bcli, agent-browser, curl or a JSON tool (jq or python3) is missing.
+- `captcha`, `assist` and `audio` are not available on Windows (bcli has no `assist`/`audio` there); use
+  `agent-web view SID` for human hand-over.
 - `captcha` and `assist` use `bcli assist`, which needs a desktop session on the machine where the human sits. If no
   window can be shown (exit 3), use `agent-web view SID` instead. For local sessions the browser window is already on
   the desktop.
@@ -135,10 +137,11 @@ For logins, prefer one of these, in this order:
 
 1. **Persistent profile:** a human signs in once in a session with `--profile NAME` (via `view_url`); later sessions
    start signed in.
-2. **Local vault:** a human stores the credential with `bcli vault create … --password-env VAR`. The agent only calls
-   `bcli vault list --url …` and `bcli vault autofill <id> --tab active --submit`; the browser extension fills the
-   form, and the agent never sees the password. For cloud sessions the human keeps `bcli vault attach --session <id>`
-   running. See [Credential vault](usage.md#credential-vault).
+2. **Local vault:** a human stores the credential with `bcli vault create … --password-env VAR` and unlocks the vault
+   once with `bcli vault unlock` (for a cloud session: `bcli vault unlock --session <id>`). The agent only calls
+   `bcli vault list --url …` and `bcli vault autofill <id> --tab active --submit` (plus `--session <id>` in the cloud);
+   the browser extension fills the form, and the agent never sees the password. See
+   [Credential vault](usage.md#credential-vault).
 3. **Human hand-over:** the human types the credential directly in the live view.
 
 Never put passwords into prompts, scripts or environment variables the agent can read.
@@ -159,6 +162,6 @@ Never put passwords into prompts, scripts or environment variables the agent can
 | `page.screenshot()` hangs | waits for web fonts on the remote display | use CDP `Page.captureScreenshot` |
 | `agent-web ab` exit 69 | agent-browser not installed | `npm install -g agent-browser` |
 | `agent-web ab` starts a local browser | an old agent-browser config with a browser profile | agent-web passes its own config; do not call `agent-browser` directly against the session |
-| `agent-web captcha` exit 3 | no desktop on this machine | `agent-web view SID` and give the URL to the human directly |
+| `agent-web captcha` exit 3 (or exit 1 on Windows) | no desktop window possible here / not available on Windows | `agent-web view SID` and give the URL to the human directly |
 
 More in [troubleshooting.md](troubleshooting.md).

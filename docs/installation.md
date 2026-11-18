@@ -26,8 +26,8 @@ Every [release](https://github.com/servas-ai/bcli-public/releases) contains:
 | `bcli-darwin-arm64` | macOS on Apple silicon (M1 and later) |
 | `bcli-macos-arm64-<version>.tar.gz` | macOS bundle: the same binary plus an installer for the local-mode background services |
 | `bcli-windows-amd64.exe` | Windows 10/11, x86-64 |
-| `bcli-windows-arm64.exe` | Windows 11 on ARM (no native helper window: `bcli assist` / `agent-web captcha` are not available) |
-| `baas-autofill-<version>.zip` | The credential browser extension (bcli already contains it, see [below](#credential-extension)) |
+| `bcli-windows-arm64.exe` | Windows 11 on ARM (no native dialog window) |
+| `baas-autofill-<version>.zip` | The credential browser extension, for review only — bcli already contains it ([details](#credential-extension)) |
 | `VERSION` | The version string of this release |
 | `SHA256SUMS` | SHA-256 checksums of every file above |
 | `SHA256SUMS.sig` | Ed25519 signature of `SHA256SUMS` (from the release that introduces it) |
@@ -74,6 +74,10 @@ gh release download "$VERSION" --repo servas-ai/bcli-public --pattern "bcli-linu
 
 ## macOS (Apple silicon)
 
+> [!NOTE]
+> This release candidate's macOS binary was built but has not yet been run on Apple silicon. It is a preview; please
+> report problems.
+
 ```bash
 VERSION=v0.14.0-rc.2                                                 # the release to install
 BASE=https://github.com/servas-ai/bcli-public/releases/download/$VERSION
@@ -110,8 +114,12 @@ Intel Macs are not supported.
 ### Local mode on macOS (optional)
 
 For [local mode](usage.md#local-mode) the macOS bundle installs the local daemon as a per-user LaunchAgent (no root,
-no system service). It needs the absolute path of the Chromium-based browser it should launch:
-<!-- verify after rc.2 -->
+no system service), so it starts again after every login. It needs the absolute path of the Chromium-based browser it
+should launch.
+
+> [!WARNING]
+> The macOS build of this release candidate was cross-compiled and has **not yet been run on Apple silicon**. Treat
+> macOS as a preview and please report anything that does not work.
 
 ```bash
 VERSION=v0.14.0-rc.2
@@ -173,41 +181,31 @@ and `agent-web` is started through `agent-web.cmd`, which works anyway. For `npm
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
-**Windows on ARM.** `bcli-windows-arm64.exe` has no native helper window, so `bcli assist` and `agent-web captcha` /
-`assist` do not work with it. If you need them, install the `amd64` build, which Windows 11 on ARM runs through
+**Windows on ARM.** `bcli-windows-arm64.exe` works like the `amd64` build but has no native dialog window (the dialog
+needs the x64 WebView2 loader). If you need it, install the `amd64` build, which Windows 11 on ARM runs through
 emulation.
 
-**Self-update** is not available on Windows yet; see [Updating](#updating).
+**Moving bcli.exe** to another folder is fine: on its next start it registers itself again for the browser
+extension. Keep the folder on your `PATH`.
+
+**Not on Windows (yet):**
+
+- **Self-update** — `bcli update --check` says so and exits 0; re-run the installer instead, see [Updating](#updating).
+- **Autostart** — there is no Windows service; start the local daemon after logon with `bcli daemon start`.
+- **`bcli assist` and `bcli audio`** — not available on Windows; use the live view (`view_url`) for human hand-over.
 
 ## Credential extension
 
-The [credential vault](usage.md#credential-vault) fills logins through a small browser extension. **bcli contains this
-extension** and installs it into its local sessions by itself on Linux, macOS and Windows — you do not need to
-download anything for local mode. <!-- verify after rc.2 -->
+The [credential vault](usage.md#credential-vault) fills logins through a small browser extension. **You do not need to
+download it.** Every bcli binary (Linux, macOS and Windows) contains the extension and installs it into its local
+sessions by itself; a bcli update replaces it together with bcli.
 
-The release also ships it as `baas-autofill-<version>.zip` (listed in `SHA256SUMS`) so you can inspect it, pin a copy
-or load it into a browser yourself. The archive has **no top-level folder**; extract it into a folder named
-`baas-autofill`:
+The release also publishes it as `baas-autofill-<version>.zip` (listed in `SHA256SUMS`) for transparency — for
+example to inspect or review exactly what runs in your sessions. The archive has no top-level folder
+(`manifest.json` is at its root).
 
-```bash
-# Linux / macOS
-VERSION=v0.14.0-rc.2
-curl -fsSLO "https://github.com/servas-ai/bcli-public/releases/download/$VERSION/baas-autofill-$VERSION.zip"
-grep " baas-autofill-$VERSION.zip\$" SHA256SUMS | sha256sum --check -       # macOS: shasum -a 256 --check -
-mkdir -p ~/.bcli/extensions/baas-autofill
-unzip -o "baas-autofill-$VERSION.zip" -d ~/.bcli/extensions/baas-autofill   # Debian: sudo apt install unzip
-```
-
-```powershell
-# Windows
-$Version = "v0.14.0-rc.2"
-$Dir     = "$env:LOCALAPPDATA\Programs\bcli"
-Invoke-WebRequest "https://github.com/servas-ai/bcli-public/releases/download/$Version/baas-autofill-$Version.zip" -OutFile "$Dir\baas-autofill-$Version.zip"
-Expand-Archive "$Dir\baas-autofill-$Version.zip" -DestinationPath "$Dir\extensions\baas-autofill" -Force
-```
-
-On Linux you can point bcli at an extracted copy with `BAAS_EXT_SRC=/path/to/baas-autofill`; the folder must contain
-`manifest.json`. <!-- verify after rc.2 -->
+Do **not** unpack it into `~/.bcli/extensions/`: on Linux a copy there takes precedence over the built-in extension
+and would no longer be updated with bcli.
 
 ## Node.js (for agent-web and the examples)
 
@@ -337,9 +335,11 @@ Turn the background check off with `BCLI_NO_AUTO_UPDATE=1` or `auto_update: fals
 [`config.yaml`](configuration.md). The binary must be writable by your user. A running local daemon keeps the old
 version until you restart it (`bcli daemon stop && bcli daemon start`).
 
-**Windows.** Self-update is not available on Windows yet. To update, stop the local daemon if it runs
-(`bcli daemon stop`), then run the [Windows installation](#windows) again with the new `$Version`; it replaces
-`bcli.exe` in place. Do the same for `agent-web.cmd` / `agent-web-ps.ps1`.
+**Windows.** Self-update is not available on Windows yet: `bcli update` and `bcli update --check` only print
+"self-update is not supported on Windows; install the new bcli.exe from the release" and exit 0. To update, stop the
+local daemon if it runs (`bcli daemon stop`), then run the [Windows installation](#windows) again with the new
+`$Version`; it replaces `bcli.exe` in place. Do the same for `agent-web.cmd` / `agent-web-ps.ps1`, then
+`bcli daemon start` again.
 
 On every OS you can update manually by repeating the installation steps with a newer version.
 

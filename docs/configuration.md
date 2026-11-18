@@ -98,7 +98,8 @@ bcli env use cloud                     # default from now on
 | Status | Meaning |
 |---|---|
 | `ok` | Reachable and signed in; `INSTALLATION`, `VERSION` and `ROLE` are filled in |
-| `bad-key` | The server did not accept the credentials. **Expected before your first `bcli login`** — current releases probe without a token and show `bad-key`; sign in and it changes to `ok`. <!-- verify after rc.2: will show "not logged in" --> After a login it means the token or (deprecated) API key was rejected: run `bcli login` again. |
+| `not-logged-in` | Reachable, but you have not signed in to this environment yet: `bcli login --env NAME` |
+| `bad-key` | The server rejected the stored login token or (deprecated) API key: run `bcli login` again |
 | `no-login` | The stored login could not be used (expired or refresh failed): `bcli login` |
 | `no-key` | A deprecated API-key reference could not be resolved |
 | `unreachable` | Network, proxy or DNS problem — see [troubleshooting](troubleshooting.md#environments) |
@@ -174,6 +175,7 @@ auto_update: true
 | `BCLI_TUNNEL_FINGERPRINT` | Fingerprint for `bcli tunnel connect` (alternative to `--fingerprint`) |
 | `BAAS_BROWSER_PATH` | Browser executable for local sessions (overrides `browser_path`) |
 | `BCLI_VAULT_PASSPHRASE` | Passphrase for `bcli vault unlock` in automation. Prefer an interactive unlock by a human. |
+| `BAAS_LOG_LEVEL` | Diagnostic output on stderr (`debug`, `info`); vault commands are quiet without it |
 
 ## Tenants, quotas and exit nodes
 

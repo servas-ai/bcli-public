@@ -3,7 +3,8 @@
   agent-web - a browser for coding agents, on top of bcli (servas.ai Browser as a Service).
 
 .DESCRIPTION
-  Windows version of bin/agent-web with the same subcommands and output:
+  Windows version of bin/agent-web with the same subcommands and output (except captcha,
+  assist and audio, which bcli does not offer on Windows):
   `start` prints ONLY the session id on stdout; hints go to stderr.
   Call it through agent-web.cmd (same folder), which runs this file with
   -ExecutionPolicy Bypass, so it also works where the execution policy is Restricted.
@@ -40,15 +41,14 @@ Usage:
                                        agent-web ab SID click '@e3'   (quote @refs in PowerShell)
   agent-web view SID [--print]       Open the live view in the default browser (for a human).
                                      --print writes the URL to stdout instead; it contains an access token.
-  agent-web captcha SID [HINT]       Ask the human to solve a captcha in a small native window.
-  agent-web assist SID [HINT]        Ask the human for any help (2FA, consent, decision) in a native window.
   agent-web tunnel SID PORTS         Make local ports (e.g. 3000,5173) reachable as http://localhost:PORT
                                      inside the cloud browser. Blocks: run it in the background.
-  agent-web audio SID [BCLI_AUDIO_FLAGS...]
-                                     Stream the session's speaker/microphone (bcli audio attach). Blocks.
   agent-web stop SID                 Close the agent-browser connection and stop the session.
   agent-web status                   List your running sessions and the sessions started by agent-web.
   agent-web version | help
+
+  Not on Windows: captcha, assist and audio (bcli assist/audio are Linux/macOS only).
+  For human help use 'agent-web view SID'.
 
 Environment:
   AGENT_WEB_ENV            bcli environment name (default: bcli's current environment)
@@ -169,27 +169,9 @@ function Open-View([string[]]$Rest) {
   Write-Hint 'live view opened in the default browser'
 }
 
-function Invoke-Assist([string]$Mode, [string[]]$Rest) {
-  if ($Rest.Count -lt 1) { Exit-Usage "usage: agent-web $Mode SID [HINT]" }
-  $sid = $Rest[0]; Assert-Sid $sid
-  $hint = if ($Rest.Count -ge 2) { $Rest[1] } else { '' }
-  $info = Get-SidState $sid
-  if ($info.Kind -eq 'local') { Write-Hint 'local session: its browser window is on this desktop; ask the human to use it directly.'; return }
-  if ($Mode -eq 'captcha') {
-    $heading = 'An agent needs your help: please solve the captcha'
-    if (-not $hint) { $hint = 'Solve it in this window, then close the window.' }
-  } else {
-    $heading = 'An agent needs your help'
-    if (-not $hint) { $hint = 'Do what the page asks (e.g. a code or a confirmation), then close the window.' }
-  }
-  Write-Hint 'window open, waiting for the human (run this in the background or as a monitor)'
-  $assistArgs = (Get-EnvArgs $info.Env) + @('assist', '--session', $sid, '--mode', 'window', '--heading', $heading, '--hint', $hint)
-  & $Bcli @assistArgs
-  switch ($LASTEXITCODE) {
-    { $_ -in 0, 12 } { Write-Hint "the human closed the window. Check the page: agent-web ab $sid snapshot -i"; exit 0 }
-    3 { Exit-With 3 "no window possible on this machine. Use: agent-web view $sid" }
-    default { exit $LASTEXITCODE }
-  }
+function Invoke-Unsupported([string]$Name, [string[]]$Rest) {
+  $sid = if ($Rest.Count -ge 1) { $Rest[0] } else { 'SID' }
+  Exit-With 1 "'$Name' is not available on Windows. For human help open the live view: agent-web view $sid"
 }
 
 function Start-Tunnel([string[]]$Rest) {
@@ -199,16 +181,6 @@ function Start-Tunnel([string[]]$Rest) {
   if ($info.Kind -eq 'local') { Write-Hint 'local session: localhost is already reachable, no tunnel needed'; return }
   $tunnelArgs = (Get-EnvArgs $info.Env) + @('tunnel', 'start', '--session', $sid, '--ports', $Rest[1])
   & $Bcli @tunnelArgs
-  exit $LASTEXITCODE
-}
-
-function Start-Audio([string[]]$Rest) {
-  if ($Rest.Count -lt 1) { Exit-Usage 'usage: agent-web audio SID [--dir both|out|in] [--channels 1|2] [--fifo DIR | --socket PATH]' }
-  $sid = $Rest[0]; Assert-Sid $sid
-  $info = Get-SidState $sid
-  $more = if ($Rest.Count -gt 1) { $Rest[1..($Rest.Count - 1)] } else { @() }
-  $audioArgs = (Get-EnvArgs $info.Env) + @('audio', 'attach', '--session', $sid) + $more
-  & $Bcli @audioArgs
   exit $LASTEXITCODE
 }
 
@@ -251,10 +223,10 @@ switch ($command) {
   'start'   { Start-Session $rest }
   'ab'      { Invoke-Ab $rest }
   'view'    { Open-View $rest }
-  'captcha' { Invoke-Assist 'captcha' $rest }
-  'assist'  { Invoke-Assist 'assist' $rest }
+  'captcha' { Invoke-Unsupported 'captcha' $rest }
+  'assist'  { Invoke-Unsupported 'assist' $rest }
   'tunnel'  { Start-Tunnel $rest }
-  'audio'   { Start-Audio $rest }
+  'audio'   { Invoke-Unsupported 'audio' $rest }
   'stop'    { Stop-Session $rest }
   'status'  { Show-Status }
   { $_ -in 'version', '--version' } { Write-Output "agent-web $Version" }

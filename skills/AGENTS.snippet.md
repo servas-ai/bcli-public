@@ -23,7 +23,8 @@ agent-web ab "$SID" click @e3                # fill @e2 "text" · press Enter ·
 agent-web stop "$SID"                        # always, also after errors
 ```
 
-- Human needed (captcha, 2FA, consent): `agent-web captcha "$SID"` / `agent-web assist "$SID" "what to do"` — waits for
+- Human needed (captcha, 2FA, consent): `agent-web captcha "$SID"` / `agent-web assist "$SID" "what to do"` (Linux/macOS;
+  on Windows use `agent-web view "$SID"`) — waits for
   the human, run it in the background. Exit 3 = no window here → `agent-web view "$SID"`.
 - Local dev server in the cloud browser: `agent-web tunnel "$SID" 3000` (blocks; background it), then open
   `http://localhost:3000`.

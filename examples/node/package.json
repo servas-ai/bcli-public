@@ -1,0 +1,11 @@
+{
+  "name": "bcli-example-node",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node connect.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.62.1"
+  }
+}

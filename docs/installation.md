@@ -23,9 +23,9 @@ Every [release](https://github.com/servas-ai/bcli-public/releases) contains:
 | `bcli-darwin-arm64` | macOS on Apple silicon (M1 and later) |
 | `bcli-windows-amd64.exe` | Windows 10/11, x86-64 |
 | `bcli-windows-arm64.exe` | Windows 11 on ARM (when listed in the release) |
-| credential extension archive | The browser extension that fills vault entries in local sessions (see the release notes for the exact file name) |
+| credential extension archive | The browser extension that fills vault entries in local sessions (file name and SHA-256 are listed in the release notes) |
 | `VERSION` | The version string of this release |
-| `SHA256SUMS` | SHA-256 checksums of all files above |
+| `SHA256SUMS` | SHA-256 checksums of `VERSION` and all bcli binaries |
 | `SHA256SUMS.sig` | Ed25519 signature of `SHA256SUMS` (from the release that introduces it) |
 
 In the examples below, set `VERSION` to the release tag you want, for example `v0.14.0-rc.1`.

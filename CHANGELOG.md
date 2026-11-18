@@ -16,6 +16,9 @@ First public build of bcli for Linux, macOS and Windows.
 - **Local credential vault and browser extension:** encrypted local vault (`bcli vault …`) whose bundled extension
   fills usernames, passwords and TOTP codes into the page without exposing them to the agent; `vault attach` brings the
   vault to cloud sessions.
+- **agent-web** (`bin/agent-web` for Linux/macOS, `bin/agent-web.ps1` + `agent-web.cmd` for Windows): starts
+  sessions and drives them with the open-source agent-browser CLI (snapshots and element refs), human hand-over via
+  `captcha`/`assist`/`view`, tunnels, audio and stop — the recommended path for coding agents.
 - **Public release repository** with installation guides, configuration and usage documentation, a ready-made agent
   skill (`skills/bcli/SKILL.md`), an `AGENTS.md` snippet and examples.
 

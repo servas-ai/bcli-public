@@ -8,6 +8,52 @@ bcli was designed to be driven by AI agents as much as by people:
 - **Standard CDP**, so the agent uses the Playwright or Puppeteer it already knows.
 - **Human hand-over** through the live view when a page needs a person.
 
+## agent-web
+
+`agent-web` ([bin/agent-web](../bin/agent-web) for Linux/macOS, [bin/agent-web.ps1](../bin/agent-web.ps1) for Windows)
+is the recommended way for an agent to use a browser. It wraps bcli and the open-source
+[agent-browser](https://www.npmjs.com/package/agent-browser) CLI, so the agent navigates with page snapshots and element
+refs instead of writing Playwright code. [Install it](installation.md#agent-web-helper) next to bcli.
+
+```bash
+SID=$(agent-web start)                          # stdout: only the session id; hints on stderr
+agent-web ab "$SID" open https://example.com
+agent-web ab "$SID" snapshot -i                 # interactive elements with refs @e1, @e2, …
+agent-web ab "$SID" fill @e2 "search text"
+agent-web ab "$SID" click @e3
+agent-web ab "$SID" get text body
+agent-web ab "$SID" screenshot page.png
+agent-web stop "$SID"                           # always
+```
+
+| Command | What it does |
+|---|---|
+| `agent-web start [--gpu] [--env NAME] [PROFILE] [bcli flags]` | Creates a session (`bcli session create --wait`, idle timeout 30 min) and prints only its id. `PROFILE` uses an existing bcli profile; other flags such as `--ttl 2h` or `--locale en-US` go to bcli. |
+| `agent-web ab SID ARGS…` | Runs `agent-browser ARGS…` against the session over CDP. Every agent-browser command works: `open`, `snapshot -i`, `click`, `fill`, `type`, `press`, `get`, `eval`, `screenshot`, `tab`, `wait`, … |
+| `agent-web view SID [--print]` | Opens the live view in the human's default browser (`--print` prints the URL — it contains an access token). |
+| `agent-web captcha SID [HINT]` | Opens a small native window with the session's screen; the human solves the captcha and closes the window. Run it in the background or as a monitor — it waits for the human. |
+| `agent-web assist SID [HINT]` | Same window for any other help: a second factor, a consent dialog, a decision. |
+| `agent-web tunnel SID PORTS` | Your local ports (e.g. `3000,5173`) as `http://localhost:PORT` in the cloud browser. Blocks: run it in the background. |
+| `agent-web audio SID [flags]` | `bcli audio attach` for the session (speaker/microphone as PCM). Blocks. |
+| `agent-web stop SID` | Closes the agent-browser connection and stops the session. |
+| `agent-web status` | Your running sessions and the ones agent-web started. |
+
+Behaviour and contract:
+
+- The session id is the only thing `start` writes to stdout, so `SID=$(agent-web start)` is safe. Everything else
+  (hints, progress) goes to stderr.
+- agent-web remembers the bcli environment of each session in `~/.bcli/agent-web/` (`AGENT_WEB_STATE`), so later
+  commands need only the id. Choose the environment with `--env NAME` or `AGENT_WEB_ENV`; by default bcli's current
+  environment is used. With a [local](usage.md#local-mode) environment, `start` launches the browser on your machine
+  and `ab` attaches to it the same way.
+- agent-web never prints session URLs except with `view --print`.
+- Exit codes are those of bcli (3 quota, 4 profile locked, 5 no capacity, 15 not signed in, …), plus 64 for usage
+  errors and 69 when bcli, agent-browser, curl or a JSON tool (jq or python3) is missing.
+- `captcha` and `assist` use `bcli assist`, which needs a desktop session on the machine where the human sits. If no
+  window can be shown (exit 3), use `agent-web view SID` instead. For local sessions the browser window is already on
+  the desktop.
+- On PowerShell, quote element refs: `agent-web ab $sid click '@e3'`.
+
 ## Install the skill
 
 ### Claude Code (and other Agent Skills hosts)
@@ -53,7 +99,9 @@ hand an agent your API key — API keys are deprecated.
 On a headless server or in a container, run `bcli login` in the agent's terminal and complete the sign-in from your
 laptop or phone.
 
-## The agent loop
+## Without agent-web: bcli + CDP
+
+If you prefer your own Playwright or Puppeteer code, or cannot install agent-browser:
 
 ```bash
 SESSION_JSON=$(bcli session create --wait)
@@ -105,5 +153,8 @@ Never put passwords into prompts, scripts or environment variables the agent can
 | Playwright starts downloading Chromium | normal `npm i playwright` | set `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` |
 | session gone after a few minutes | never connected (5 min) or idle (10 min) | connect immediately; raise `--idle-timeout` |
 | `page.screenshot()` hangs | waits for web fonts on the remote display | use CDP `Page.captureScreenshot` |
+| `agent-web ab` exit 69 | agent-browser not installed | `npm install -g agent-browser` |
+| `agent-web ab` starts a local browser | an old agent-browser config with a browser profile | agent-web passes its own config; do not call `agent-browser` directly against the session |
+| `agent-web captcha` exit 3 | no desktop on this machine | `agent-web view SID` and give the URL to the human directly |
 
 More in [troubleshooting.md](troubleshooting.md).

@@ -213,11 +213,27 @@ exit codes — is in **[docs/usage.md](docs/usage.md)**.
 
 bcli is built to be driven by agents: JSON on stdout, documented exit codes, no interactive prompts after login.
 
+**`agent-web`** is the fastest way for an agent to browse: a small helper script (bash for Linux/macOS,
+PowerShell for Windows) that combines bcli with the open-source
+[agent-browser](https://www.npmjs.com/package/agent-browser) CLI. The agent works with page snapshots and element refs —
+no Playwright code needed:
+
+```bash
+SID=$(agent-web start)                         # prints only the session id
+agent-web ab "$SID" open https://example.com
+agent-web ab "$SID" snapshot -i                # accessibility tree with refs (@e1, @e2, …)
+agent-web ab "$SID" click @e3
+agent-web captcha "$SID"                       # a human solves a captcha in a small window
+agent-web stop "$SID"
+```
+
+Install it next to bcli: [docs/installation.md](docs/installation.md#agent-web-helper).
+
 - **Claude Code / Agent Skills:** copy [`skills/bcli/`](skills/bcli/) into `~/.claude/skills/` (or your project's
   `.claude/skills/`). The skill teaches the agent to create, drive and always stop sessions, and to keep tokens out of logs.
 - **Codex, Cursor, Aider and other agents:** paste [`skills/AGENTS.snippet.md`](skills/AGENTS.snippet.md) into your
   repository's `AGENTS.md`.
-- **Examples:** [`examples/`](examples/) has minimal Playwright (Node.js and Python) scripts.
+- **Your own code:** `bcli session create` + Playwright/Puppeteer `connectOverCDP` — see [`examples/`](examples/).
 
 Details and safety rules: **[docs/agents.md](docs/agents.md)**.
 

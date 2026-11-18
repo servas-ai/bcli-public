@@ -1,0 +1,287 @@
+#!/usr/bin/env bash
+# agent-web - a browser for coding agents, on top of bcli (servas.ai Browser as a Service).
+#
+# Starts a bcli browser session, lets an agent drive it with the agent-browser CLI over CDP,
+# hands it to a human when needed, and stops it again. Linux and macOS (bash 3.2+).
+# Windows: bin/agent-web.ps1 (same subcommands, same output).
+#
+# Docs: https://github.com/servas-ai/bcli-public/blob/main/docs/agents.md
+set -euo pipefail
+
+VERSION="1.0.0"
+BCLI="${AGENT_WEB_BCLI:-bcli}"
+AB="${AGENT_WEB_AGENT_BROWSER:-agent-browser}"
+STATE="${AGENT_WEB_STATE:-${BCLI_HOME:-$HOME/.bcli}/agent-web}"
+IDLE_TIMEOUT="${AGENT_WEB_IDLE_TIMEOUT:-30m}"
+
+usage() {
+  cat <<'EOF'
+agent-web - a browser for coding agents, on top of bcli
+
+Usage:
+  agent-web start [--gpu] [--env NAME] [PROFILE] [BCLI_CREATE_FLAGS...]
+                                     Create a session and print ONLY its id on stdout (hints go to stderr).
+                                     PROFILE: start from a persistent bcli profile (must exist).
+                                     Other flags (e.g. --ttl 2h --locale en-US) go to 'bcli session create'.
+  agent-web ab SID ARGS...           Run agent-browser against the session, e.g.
+                                       agent-web ab SID open https://example.com
+                                       agent-web ab SID snapshot -i
+                                       agent-web ab SID click @e3
+  agent-web view SID [--print]       Open the live view in the default browser (for a human).
+                                     --print writes the URL to stdout instead; it contains an access token.
+  agent-web captcha SID [HINT]       Ask the human to solve a captcha in a small native window.
+  agent-web assist SID [HINT]        Ask the human for any help (2FA, consent, decision) in a native window.
+  agent-web tunnel SID PORTS         Make local ports (e.g. 3000,5173) reachable as http://localhost:PORT
+                                     inside the cloud browser. Blocks: run it in the background.
+  agent-web audio SID [BCLI_AUDIO_FLAGS...]
+                                     Stream the session's speaker/microphone (bcli audio attach). Blocks.
+  agent-web stop SID                 Close the agent-browser connection and stop the session.
+  agent-web status                   List your running sessions and the sessions started by agent-web.
+  agent-web version | help
+
+Environment:
+  AGENT_WEB_ENV            bcli environment name (default: bcli's current environment)
+  AGENT_WEB_BCLI           bcli executable (default: bcli on PATH)
+  AGENT_WEB_AGENT_BROWSER  agent-browser executable (default: agent-browser on PATH)
+  AGENT_WEB_IDLE_TIMEOUT   idle timeout for new sessions (default: 30m)
+  AGENT_WEB_STATE          state directory (default: ~/.bcli/agent-web)
+
+Exit codes: those of bcli (e.g. 3 quota, 4 profile locked, 5 no capacity, 15 not signed in);
+64 usage error; 69 a required tool is missing.
+EOF
+}
+
+die() { echo "agent-web: $*" >&2; exit 1; }
+usage_error() { echo "agent-web: $*" >&2; echo "Run 'agent-web help' for usage." >&2; exit 64; }
+need_tool() { command -v "$1" >/dev/null 2>&1 || { echo "agent-web: '$1' not found on PATH. $2" >&2; exit 69; }; }
+
+# json_get FIELD: read one JSON object on stdin, print a top-level string/number field.
+json_get() {
+  if command -v jq >/dev/null 2>&1; then
+    jq -r --arg k "$1" '.[$k] // empty'
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import json,sys
+v=json.load(sys.stdin).get(sys.argv[1])
+print("" if v is None else v)' "$1"
+  else
+    echo "agent-web: needs jq or python3 to read bcli's JSON output" >&2; exit 69
+  fi
+}
+
+# Running sessions as "id state profile" lines.
+session_lines() {
+  if command -v jq >/dev/null 2>&1; then
+    jq -r '.[] | select(.state != "terminated" and .state != "failed") | "\(.id) \(.state) \(.profile // "")"'
+  else
+    python3 -c 'import json,sys
+for s in json.load(sys.stdin):
+    if s.get("state") not in ("terminated", "failed"):
+        print(s.get("id"), s.get("state"), s.get("profile") or "")'
+  fi
+}
+
+valid_sid() { case "$1" in "" | *[!A-Za-z0-9-]*) usage_error "invalid session id '$1'" ;; esac; }
+
+# Per-session state: the bcli environment and the kind (cloud|local) of the session.
+state_file() { printf '%s/sid-%s.env' "$STATE" "$1"; }
+load_sid() {
+  SID_ENV="${AGENT_WEB_ENV:-}"
+  SID_KIND=cloud
+  local f line
+  f="$(state_file "$1")"
+  if [ -f "$f" ]; then
+    while IFS= read -r line; do
+      case "$line" in
+        env=*) SID_ENV="${line#env=}" ;;
+        kind=*) SID_KIND="${line#kind=}" ;;
+      esac
+    done <"$f"
+  fi
+  ENV_ARGS=()
+  if [ -n "$SID_ENV" ]; then ENV_ARGS=(--env "$SID_ENV"); fi
+}
+
+bcli_env() { "$BCLI" ${ENV_ARGS[@]+"${ENV_ARGS[@]}"} "$@"; }
+
+ab_config() {
+  # A config without a browser profile: agent-browser then only attaches over CDP.
+  local cfg="$STATE/agent-browser-cdp.json"
+  [ -f "$cfg" ] || printf '{"headed": false}\n' >"$cfg"
+  printf '%s' "$cfg"
+}
+
+# CDP target for agent-browser: the browser WebSocket of a cloud session, the port of a local one.
+cdp_target() {
+  local url base query
+  url="$(bcli_env session url "$1")" || die "session $1 not found or not running"
+  if [ "$SID_KIND" = local ]; then
+    url="${url%%/}"
+    printf '%s' "${url##*:}"
+    return 0
+  fi
+  base="${url%%\?*}"
+  query=""
+  case "$url" in *\?*) query="?${url#*\?}" ;; esac
+  need_tool curl "Install curl."
+  curl -fsS --max-time 20 "${base%/}/json/version${query}" | json_get webSocketDebuggerUrl
+}
+
+open_url() {
+  case "$(uname -s)" in
+    Darwin) open "$1" ;;
+    *) if command -v xdg-open >/dev/null 2>&1; then xdg-open "$1" >/dev/null 2>&1; else return 1; fi ;;
+  esac
+}
+
+cmd_start() {
+  local gpu="" profile="" env="${AGENT_WEB_ENV:-}"
+  local extra=()
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --gpu) gpu=1 ;;
+      --env) [ $# -ge 2 ] || usage_error "--env needs a name"; env="$2"; shift ;;
+      --) shift; extra=("$@"); break ;;
+      -*) extra=("$@"); break ;; # any other flag: the rest goes to bcli session create
+
+      *) [ -z "$profile" ] || usage_error "only one profile"; profile="$1" ;;
+    esac
+    shift
+  done
+  need_tool "$BCLI" "Install bcli: https://github.com/servas-ai/bcli-public#install"
+  ENV_ARGS=()
+  if [ -n "$env" ]; then ENV_ARGS=(--env "$env"); fi
+  local args=(session create --wait --idle-timeout "$IDLE_TIMEOUT")
+  if [ -n "$gpu" ]; then args+=(--gpu); fi
+  if [ -n "$profile" ]; then args+=(--profile "$profile"); fi
+  local json sid kind
+  json="$(bcli_env "${args[@]}" ${extra[@]+"${extra[@]}"})" || exit $?
+  sid="$(printf '%s' "$json" | json_get id)"
+  [ -n "$sid" ] || die "bcli returned no session id"
+  kind=cloud
+  [ "$(printf '%s' "$json" | json_get provision_path)" = local ] && kind=local
+  mkdir -p "$STATE"
+  printf 'env=%s\nkind=%s\n' "$env" "$kind" >"$(state_file "$sid")"
+  echo "$sid"
+  echo "agent-web: session ready ($kind${profile:+, profile $profile}${gpu:+, gpu}). Next: agent-web ab $sid open <url> · agent-web stop $sid when done" >&2
+}
+
+cmd_ab() {
+  [ $# -ge 2 ] || usage_error "usage: agent-web ab SID ARGS..."
+  local sid="$1"; shift
+  valid_sid "$sid"; load_sid "$sid"
+  need_tool "$AB" "Install the agent-browser CLI (e.g. npm install -g agent-browser)."
+  local target cfg
+  target="$(cdp_target "$sid")"
+  [ -n "$target" ] || die "could not resolve the CDP endpoint of session $sid"
+  cfg="$(ab_config)"
+  AGENT_BROWSER_CONFIG="$cfg" AGENT_BROWSER_SESSION="bcli-$sid" exec "$AB" --cdp "$target" "$@"
+}
+
+cmd_view() {
+  [ $# -ge 1 ] || usage_error "usage: agent-web view SID [--print]"
+  local sid="$1" url
+  valid_sid "$sid"; load_sid "$sid"
+  url="$(bcli_env session get "$sid" | json_get view_url)"
+  [ -n "$url" ] || die "session $sid has no live view (local sessions show their window on this desktop)"
+  if [ "${2:-}" = --print ]; then printf '%s\n' "$url"; return 0; fi
+  if open_url "$url"; then
+    echo "agent-web: live view opened in the default browser" >&2
+  else
+    echo "agent-web: no desktop browser here. Use 'agent-web view $sid --print' and give the URL to the human directly (it contains an access token)." >&2
+    exit 1
+  fi
+}
+
+cmd_assist() {
+  local mode="$1"; shift
+  [ $# -ge 1 ] || usage_error "usage: agent-web $mode SID [HINT]"
+  local sid="$1" hint="${2:-}" heading rc
+  valid_sid "$sid"; load_sid "$sid"
+  if [ "$SID_KIND" = local ]; then
+    echo "agent-web: local session: its browser window is on this desktop; ask the human to use it directly." >&2
+    return 0
+  fi
+  if [ "$mode" = captcha ]; then
+    heading="An agent needs your help: please solve the captcha"
+    [ -n "$hint" ] || hint="Solve it in this window, then close the window."
+  else
+    heading="An agent needs your help"
+    [ -n "$hint" ] || hint="Do what the page asks (e.g. a code or a confirmation), then close the window."
+  fi
+  echo "agent-web: window open, waiting for the human (run this in the background or as a monitor)" >&2
+  set +e
+  bcli_env assist --session "$sid" --mode window --heading "$heading" --hint "$hint"
+  rc=$?
+  set -e
+  case "$rc" in
+    0 | 12) echo "agent-web: the human closed the window. Check the page: agent-web ab $sid snapshot -i" >&2; return 0 ;;
+    3) echo "agent-web: no window possible on this machine. Use: agent-web view $sid" >&2; return 3 ;;
+    *) return "$rc" ;;
+  esac
+}
+
+cmd_tunnel() {
+  [ $# -eq 2 ] || usage_error "usage: agent-web tunnel SID PORTS"
+  local sid="$1"
+  valid_sid "$sid"; load_sid "$sid"
+  if [ "$SID_KIND" = local ]; then
+    echo "agent-web: local session: localhost is already reachable, no tunnel needed" >&2
+    return 0
+  fi
+  exec "$BCLI" ${ENV_ARGS[@]+"${ENV_ARGS[@]}"} tunnel start --session "$sid" --ports "$2"
+}
+
+cmd_audio() {
+  [ $# -ge 1 ] || usage_error "usage: agent-web audio SID [--dir both|out|in] [--channels 1|2] [--fifo DIR | --socket PATH]"
+  local sid="$1"; shift
+  valid_sid "$sid"; load_sid "$sid"
+  exec "$BCLI" ${ENV_ARGS[@]+"${ENV_ARGS[@]}"} audio attach --session "$sid" "$@"
+}
+
+cmd_stop() {
+  [ $# -eq 1 ] || usage_error "usage: agent-web stop SID"
+  local sid="$1" cfg
+  valid_sid "$sid"; load_sid "$sid"
+  if command -v "$AB" >/dev/null 2>&1; then
+    cfg="$(ab_config)"
+    AGENT_BROWSER_CONFIG="$cfg" AGENT_BROWSER_SESSION="bcli-$sid" "$AB" close >/dev/null 2>&1 || true
+  fi
+  bcli_env session stop "$sid" >/dev/null
+  rm -f "$(state_file "$sid")"
+  echo "agent-web: stopped $sid" >&2
+}
+
+cmd_status() {
+  need_tool "$BCLI" "Install bcli: https://github.com/servas-ai/bcli-public#install"
+  ENV_ARGS=()
+  if [ -n "${AGENT_WEB_ENV:-}" ]; then ENV_ARGS=(--env "$AGENT_WEB_ENV"); fi
+  echo "# running sessions (id state profile)"
+  bcli_env session list | session_lines
+  local f found=""
+  for f in "$STATE"/sid-*.env; do
+    [ -e "$f" ] || continue
+    if [ -z "$found" ]; then echo "# started by agent-web"; found=1; fi
+    f="${f##*/sid-}"
+    echo "${f%.env}"
+  done
+}
+
+mkdir -p "$STATE"
+chmod 700 "$STATE" 2>/dev/null || true
+
+cmd="${1:-help}"
+[ $# -gt 0 ] && shift
+case "$cmd" in
+  start) cmd_start "$@" ;;
+  ab) cmd_ab "$@" ;;
+  view) cmd_view "$@" ;;
+  captcha) cmd_assist captcha "$@" ;;
+  assist) cmd_assist assist "$@" ;;
+  tunnel) cmd_tunnel "$@" ;;
+  audio) cmd_audio "$@" ;;
+  stop) cmd_stop "$@" ;;
+  status) cmd_status ;;
+  version | --version) echo "agent-web $VERSION" ;;
+  help | -h | --help) usage ;;
+  *) usage_error "unknown command '$cmd'" ;;
+esac

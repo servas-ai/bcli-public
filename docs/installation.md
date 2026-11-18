@@ -6,6 +6,7 @@ bcli is a single self-contained executable. There is nothing to compile and no r
 - [Linux](#linux)
 - [macOS (Apple silicon)](#macos-apple-silicon)
 - [Windows](#windows)
+- [agent-web helper](#agent-web-helper)
 - [Verify checksums](#verify-checksums)
 - [Verify the signature of SHA256SUMS](#verify-the-signature-of-sha256sums)
 - [Updating](#updating)
@@ -144,6 +145,45 @@ If no ARM64 build is listed in the release, use the `amd64` asset; Windows 11 on
 from the same release next to `bcli.exe`, so that the folder `%LOCALAPPDATA%\Programs\bcli\extensions\baas-autofill\`
 contains `manifest.json`. See [Local mode](usage.md#local-mode).
 
+## agent-web helper
+
+`agent-web` is an optional helper for coding agents: it starts bcli sessions and drives them with the open-source
+[agent-browser](https://www.npmjs.com/package/agent-browser) CLI (see [agents.md](agents.md#agent-web)). Install bcli
+first, then:
+
+**Requirements:** bcli, Node.js (for `npm install -g agent-browser`); on Linux/macOS also `curl` and `jq` or `python3`.
+agent-browser only attaches to the cloud browser over CDP; it does not need to download a browser of its own.
+
+<details open>
+<summary><strong>Linux and macOS</strong></summary>
+
+```bash
+VERSION=v0.14.0-rc.1
+curl -fsSL "https://raw.githubusercontent.com/servas-ai/bcli-public/$VERSION/bin/agent-web" -o "$HOME/.local/bin/agent-web"
+chmod +x "$HOME/.local/bin/agent-web"
+npm install -g agent-browser
+agent-web --help
+```
+</details>
+
+<details>
+<summary><strong>Windows</strong> (PowerShell)</summary>
+
+```powershell
+$Version = "v0.14.0-rc.1"
+$Dir     = "$env:LOCALAPPDATA\Programs\bcli"          # same folder as bcli.exe, already on PATH
+foreach ($f in "agent-web.ps1", "agent-web.cmd") {
+  Invoke-WebRequest "https://raw.githubusercontent.com/servas-ai/bcli-public/$Version/bin/$f" -OutFile "$Dir\$f"
+}
+Unblock-File "$Dir\agent-web.ps1"
+npm install -g agent-browser
+agent-web --help
+```
+
+`agent-web.cmd` makes `agent-web` callable from cmd.exe, PowerShell and most agent shells. In PowerShell, quote
+element refs: `agent-web ab $sid click '@e3'` (an unquoted `@e3` is PowerShell splatting).
+</details>
+
 ## Verify checksums
 
 `SHA256SUMS` uses the standard `sha256sum` format (`<hex digest>  <file name>`). Check **one** file:
@@ -212,6 +252,7 @@ You can always update manually by repeating the installation steps with a newer 
 ```bash
 # Linux / macOS
 bcli daemon stop 2>/dev/null; rm -f ~/.local/bin/bcli
+rm -f ~/.local/bin/agent-web
 rm -rf ~/.bcli ~/.config/bcli     # optional: login tokens, local state, config and local vault
 ```
 

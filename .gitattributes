@@ -1,0 +1,4 @@
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+bin/agent-web text eol=lf
+*.png binary

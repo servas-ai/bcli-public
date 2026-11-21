@@ -2,24 +2,24 @@
   "files": {
     "assets/cover.png": {
       "size": "1600x900",
-      "sha256": "f65a0fcfa3f099da2fc4cb81e60491f01c2ae09552af9f0ca2c3c52c930d39d0"
+      "sha256": "57431fe980a1e928aa9040bd7a84d8b6c59c70bbcd837fd1d856daf1f1ecf9d8"
     },
     "assets/social-preview.png": {
       "size": "1280x640",
-      "sha256": "e7803fee04a8eb2d5bb8fb1da3a9f4e11514087ca424eef2a980a43639f93942"
+      "sha256": "288e4019340a4284f0ee4b98eb432201c297dc2ea7fb7ef2b25c25ec4c18550d"
     }
   },
   "artwork": {
-    "sha256_original": "738c0aa8b1050da8a50650f29501e5003b7fe919bac0334f456c49937ab8e8ad",
+    "sha256_original": "5d3cd94296a01c73f4bd713504601f3051a1813727998df3dd79f016cdb8d9da",
     "pixel_size": {
       "width": 1536,
       "height": 1024
     },
     "generator": "ChatGPT web (image generation)",
-    "generated_at": "2026-11-21T18:22:28Z",
-    "rules": "Semantic Glass Cover v2 (pdfcli cover rules)",
+    "generated_at": "2026-11-21T18:48:54Z",
+    "rules": "servas glass cover style (pdfcli Semantic Glass Cover), with recognizable product symbols",
     "brand": "servas",
-    "prompt": "Generate one image in landscape format (3:2, the widest landscape size available). Do not ask questions, generate the image right away.\n\nCreate a single premium editorial 3D glass artwork for a document cover about bcli, a command-line client that starts real cloud browsers for AI agents. The main object is a single framed cloud body made of thick glass, with three slim frosted glass browser-window panes floating in front of it like real browsers in the cloud, connected by one thin glowing glass line to a small rounded glass terminal block, built from thick clear glass and softly frosted glass, integrated with a restrained composition of rounded rectangular prisms, one curved plane and at most two small spheres. Supporting geometry: three calm planes beneath it. Keep the background seamless white or very pale warm white. Use a warm tangerine orange (around #F98D4A) for selected glass volumes and internal reflections, balanced with transparent and white surfaces. Physical refraction, substantial glass thickness, beautiful beveled edges, soft studio daylight and subtle contact shadows. One coherent central sculpture, lower-middle of frame, with the upper third calm and empty for typography added later. Main object and front edges sharply resolved; distant supports only gently softened. Prioritize precise glass thickness. No text, letters, numbers, logo, watermark, UI, cards, labels, badges, mini-icon rail, collage or contact sheet. One full-resolution image per composition. The artwork is illustrative, not a chart or scientific evidence.\n"
+    "prompt": "Generate one image in landscape format (3:2, the widest landscape size available). Do not ask questions, generate the image right away.\n\nA 3D glass artwork about \"real web browsers running in the cloud, controlled from a laptop by AI agents\". Main group: a large softly frosted glass cloud in the back, and in front of it three floating glass web-browser windows, each one instantly recognizable as a web browser: rounded window frame, a row of browser tabs on top, three small round window dots at the top left, a blank pill-shaped address bar, and a frosted page area with a few simple blank content blocks (no text). In the left foreground of the group stands a small open glass laptop, its keyboard and screen made of glass with a soft tangerine glow on the screen. Thin glowing tangerine glass cords run from the laptop up to each of the three browser windows, showing that the laptop reaches and controls them.\n\nStyle: premium editorial 3D glass artwork. Thick clear glass and softly frosted glass, physical refraction, substantial glass thickness, beautiful beveled edges, soft studio daylight, subtle contact shadows. Seamless white or very pale warm white background. Use a warm tangerine orange (around #F98D4A) for selected glass volumes, the glowing cords and internal reflections, balanced with transparent and white surfaces. Composition: the whole sculpture group sits in the right two thirds and lower part of the frame; the left third and the top quarter stay completely calm and empty for typography added later. Nothing is cut off at the frame edges. No text, no letters, no numbers, no words, no real brand logos, no watermark, no icon rail, no collage.\n"
   },
   "composition": "artwork normalised to white and multiplied onto #F8F4F0, edges faded; servas.ai logo and text set as type (Aspekta, from servas-ai/pdfcli assets/brands/servas), not generated"
 }

@@ -23,6 +23,7 @@
   <a href="docs/usage.md">Usage guide</a> ·
   <a href="docs/agents.md">Agents</a> ·
   <a href="docs/configuration.md">Configuration</a> ·
+  <a href="docs/exit-node.md">Exit node</a> ·
   <a href="docs/security.md">Security</a> ·
   <a href="docs/troubleshooting.md">Troubleshooting</a>
 </p>
@@ -84,7 +85,7 @@ No VPN, no Kubernetes, no proxy contracts and no browser updates on your side. A
 | **Standard CDP** | `cdp_url` works with Playwright `connectOverCDP`, Puppeteer `connect` and any CDP library. No SDK lock-in. |
 | **Live view and hand-over** | `view_url` opens the session in your own browser. Watch the agent work and take over mouse and keyboard when a human is needed. |
 | **Persistent profiles** | `bcli profile create` keeps cookies and logins across sessions, with an exclusive lock so two runs never corrupt one profile. |
-| **Your own exit IP** | Sessions leave the internet through your tenant's exit node. Run one in your office or data center with a single Docker command: [`servas-ai/baas-exit-docker`](https://github.com/servas-ai/baas-exit-docker). |
+| **Your own exit IP** | Sessions leave the internet through your tenant's exit node. Run one in your office or data center as a single Docker container: **[Start an exit node](docs/exit-node.md)**. |
 | **localhost in the cloud** | `bcli tunnel start --ports 3000` makes your dev server reachable as `http://localhost:3000` inside the remote browser. |
 | **Credentials without exposure** | The local vault and the bundled credential extension fill usernames, passwords, TOTP codes and passkeys into the page. The agent only references an entry id; it never reads the secret. |
 | **Bitwarden with human approval** | `bcli vault bw` fills logins from your Bitwarden vault (bitwarden.com, bitwarden.eu, self-hosted) into local and cloud sessions after a person approves each one in a native window. Linux and Windows; macOS as a preview ¹. |
@@ -282,9 +283,9 @@ and take longer.
 <details>
 <summary><strong>Can I choose the public IP the sites see?</strong></summary>
 
-Yes — that is what exit nodes are for. Your tenant has a default exit node; you can run your own with
-[`servas-ai/baas-exit-docker`](https://github.com/servas-ai/baas-exit-docker) so sessions leave the internet from your
-own network. `bcli exit-node list` shows the nodes available to you.
+Yes — that is what exit nodes are for. Your tenant has a default exit node that you run yourself, as one Docker
+container in your own network: **[Start an exit node](docs/exit-node.md)**. `bcli exit-node list` shows the nodes
+available to you. While your exit node is not running, cloud sessions fail with `exit_node_unavailable`.
 </details>
 
 <details>

@@ -191,9 +191,8 @@ bcli exit-node list  # exit nodes you may use
 
 Sessions need no exit flag: they automatically leave through your tenant's default exit node. To have the browsers
 appear with your own public IP — your office line, a data-center host — run an exit node yourself. It is a single
-Docker container and needs no VPN installation on the host:
-**[servas-ai/baas-exit-docker](https://github.com/servas-ai/baas-exit-docker)**. Create the one-time exit key in the
-console under **Tenant & exit keys**.
+Docker container and needs no VPN installation on the host: **[Start an exit node](exit-node.md)**. Create the
+one-time exit key in the console under **Tenant & exit node → Issue one-time key**.
 
 Limits are enforced by the server. When a limit is reached, `bcli session create` fails with `quota_exceeded`
 (exit code 3).

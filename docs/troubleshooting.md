@@ -109,13 +109,13 @@ The session did not become ready within `--ready-timeout` (default 5 minutes). C
 The host that stores this profile is temporarily offline. Retry later — the profile itself is fine. Do not delete or
 recreate it.
 
-**`code=exit_node_unavailable` on `session create` (exit code 1)**
-Your tenant's exit node is offline, so the API refuses to create the session (no session id is returned — this is an
-error, not a `failure_code`). Sessions never fall back to another route. Start your exit node: check it with
-`docker logs baas-exit` and run `./up.sh` again in the
-[baas-exit-docker](https://github.com/servas-ai/baas-exit-docker) folder (no new key needed after the first
-enrollment). `bcli exit-node list` and the console (**Tenant & exit keys → Refresh status**) show when it is online
-again. If you do not run an exit node yourself, contact your tenant administrator.
+**`code=exit_node_unavailable: exit node is unavailable or belongs to another tenant` on `session create` (exit code 1)**
+The tenant's exit node is not running (or the exit you named belongs to another tenant), so the API refuses to create
+the session (no session id is returned — this is an error, not a `failure_code`). Sessions never fall back to another
+route. `bcli tenant` shows the name of your default exit, `bcli exit-node list` whether it is `online`. Start it again
+on its host (`docker start <name>`, `docker logs <name>`; no new key needed after the first enrollment), or set it up
+from scratch: **[Start an exit node](exit-node.md)**. The console (**Tenant & exit node → Refresh**) shows when it is
+online again.
 
 **Session `failed` with `failure_code: ready_timeout`**
 The browser did not become ready in time (`terminate_reason: provision_failed`). This is usually transient: stop it

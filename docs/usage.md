@@ -227,17 +227,12 @@ bcli exit-node list          # names of the exit nodes available to you
 bcli tenant                  # shows your tenant's default exit node
 ```
 
-Run your own exit node — in your office, on a server, anywhere with Docker — with
-**[servas-ai/baas-exit-docker](https://github.com/servas-ai/baas-exit-docker)**:
-
-```bash
-git clone https://github.com/servas-ai/baas-exit-docker.git
-cd baas-exit-docker
-./up.sh        # asks for a one-time exit key from the console (Tenant & exit keys)
-```
+You run your tenant's exit node yourself — in your office, on a server, anywhere with Docker. Step by step (image,
+one-time key, `docker run` / Compose, checks, what it can see, stop and rotate): **[Start an exit node](exit-node.md)**.
 
 Once it is online and set as your tenant's default exit, `bcli session create` uses it automatically. While a
-tenant's exit node is down, new sessions fail instead of silently using another route.
+tenant's exit node is down, new sessions fail with `code=exit_node_unavailable` (exit code 1) instead of silently
+using another route; see [Troubleshooting](exit-node.md#troubleshooting).
 
 ## Tunnels: your localhost inside the cloud browser
 
@@ -459,7 +454,7 @@ try { node my-script.mjs } finally { bcli session stop $s.id | Out-Null }
 | Code | Meaning | What to do |
 |---:|---|---|
 | 0 | Success | |
-| 1 | Generic error; for a failed session see `failure_reason`. Also `exit_node_unavailable` on create: your tenant's exit node is offline | Read the message; for `exit_node_unavailable` start your exit node |
+| 1 | Generic error; for a failed session see `failure_reason`. Also `exit_node_unavailable` on create: your tenant's exit node is not running | Read the message; for `exit_node_unavailable` start your exit node, see [Start an exit node](exit-node.md#troubleshooting) |
 | 2 | `unauthorized` | Sign in again; check that your account has access |
 | 3 | `quota_exceeded` | Stop sessions or profiles you no longer need (`bcli tenant`) |
 | 4 | `profile_locked` — the profile is open in another session | Reuse or stop that session |

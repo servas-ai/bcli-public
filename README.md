@@ -116,8 +116,8 @@ irm https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.ps1 | i
 | | Install |
 |---|---|
 | Homebrew (macOS, Linux) | `brew install servas-ai/tap/bcli` |
-| Scoop (Windows) | `scoop bucket add servas https://github.com/servas-ai/scoop-bucket` then `scoop install servas/bcli` |
-| winget (Windows) | `winget install servas.bcli` (submitted; available once merged into the winget community repository) |
+| Scoop (Windows) | `scoop bucket add servas https://github.com/servas-ai/scoop-bucket` then `scoop install servas/bcli` (needs `scoop install git` once) |
+| winget (Windows) | `winget install servas.bcli` (submitted as [winget-pkgs#486222](https://github.com/microsoft/winget-pkgs/pull/486222); available once Microsoft merges it) |
 
 A specific release: `... | sh -s -- --version v0.14.0`, or `$env:BCLI_VERSION = "v0.14.0"` before `irm ... | iex`.
 Options, manual install, upgrade and uninstall: **[docs/installation.md](docs/installation.md)**.

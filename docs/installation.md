@@ -66,10 +66,11 @@ $env:BCLI_VERSION = "v0.14.0"; irm https://raw.githubusercontent.com/servas-ai/b
 
 Homebrew tap: [servas-ai/homebrew-tap](https://github.com/servas-ai/homebrew-tap). Scoop bucket:
 [servas-ai/scoop-bucket](https://github.com/servas-ai/scoop-bucket). Both pin the SHA-256 of each binary from the
-signed `SHA256SUMS`.
+signed `SHA256SUMS`. Scoop needs Git to add a bucket: run `scoop install git` first if `scoop bucket add` asks for it.
 
-**winget:** the package `servas.bcli` has been submitted to the winget community repository. `winget install
-servas.bcli` works once Microsoft has merged it; until then use `install.ps1` or Scoop.
+**winget:** the package `servas.bcli` has been submitted to the winget community repository
+([microsoft/winget-pkgs#486222](https://github.com/microsoft/winget-pkgs/pull/486222)). `winget install servas.bcli`
+works once Microsoft has merged it; until then use `install.ps1` or Scoop.
 
 Update a package-manager install with that package manager, so it keeps track of the installed version.
 

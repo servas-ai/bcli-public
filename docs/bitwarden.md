@@ -16,6 +16,11 @@ program to install) and runs in the background as your user:
 The bridge keeps the Bitwarden keys only in memory. They are gone when it stops, at logout and after
 `bcli vault bw lock`; the next request asks for the master password again.
 
+> [!NOTE]
+> **macOS:** installation and cloud sessions (including cloud autofill from the local vault) are tested on Apple
+> silicon. Bitwarden on macOS (the approval window, and local and cloud fills from a Mac, which need it) is a preview
+> and not yet acceptance-tested.
+
 ## 1. Requirements
 
 - A desktop session: the approval windows open on your screen. Run the commands below in a terminal **inside** that
@@ -46,7 +51,8 @@ bcli bwbridge status     # service installed, starts at login, active; bridge ru
 `~/Library/LaunchAgents/ai.servas.bcli.bwbridge.plist`), starts it now and at every login. It is safe to run again.
 
 **Windows:** `bcli bwbridge start` once per logon, or `bcli daemon autostart enable --bwbridge` for every logon
-([details](installation.md#bitwarden-optional)).
+([details](installation.md#bitwarden-optional)). Up to v0.14.6 it prints nothing when it succeeds; check with
+`bcli bwbridge status`.
 
 ## 3. Connect your Bitwarden account
 
@@ -74,7 +80,8 @@ An unanswered setup window closes after five minutes; run `bcli vault bw setup` 
 
 ### Local sessions (browser on your machine)
 
-Local mode needs the local daemon, the local vault and a Chromium-based browser ([local mode](usage.md#local-mode)):
+Local mode needs the local daemon, the local vault and a Chromium-based browser ([local mode](usage.md#local-mode)).
+On macOS, `bcli daemon start` sets up the daemon's LaunchAgent itself (run it in Terminal of your desktop login):
 
 ```bash
 bcli daemon start
@@ -135,7 +142,9 @@ Check: `cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns` prints `1` o
 | "Always" approvals | `bcli vault bw grants`, `bcli vault bw revoke ID` |
 | Uninstall bcli with everything it set up | `bcli uninstall` (`--purge` also deletes the Bitwarden bridge state) |
 
-Logs: Linux `journalctl --user -u bcli-bwbridge`; Windows `bwbridge.log` in `%USERPROFILE%\.bcli`. The bridge state
+Logs: Linux `journalctl --user -u bcli-bwbridge`; Windows `bwbridge.log` in `%USERPROFILE%\.bcli`. After
+`bcli update` on Linux and macOS the bridge keeps running the old version until `bcli bwbridge start --restart`;
+on Windows `bcli update` restarts it. The bridge state
 (no passwords; encrypted account data) is in `~/.config/bwbridge`.
 
 ## Troubleshooting
@@ -148,6 +157,9 @@ Logs: Linux `journalctl --user -u bcli-bwbridge`; Windows `bwbridge.log` in `%US
 | No window; `cannot prepare embedded bcli-prompt: the user cache directory … can be changed by other users` | Other users could swap the approval window in your cache directory: `chmod 700 ~/.cache` (macOS: `~/Library/Caches`), then run the command again. Up to v0.14.5 this also happened with the Debian/Ubuntu default mode 0775 and showed only `bridge operation failed`; since v0.14.6 that mode works. |
 | No window; `~/.cache/bcli is not a private directory of this user` | The folder was created by another user, usually by `sudo bcli …`: `sudo rm -rf ~/.cache/bcli`, then run the command again; bcli creates it again. |
 | `cancelled in the bridge window` | The window was closed or **Cancel** was chosen; nothing changed. Run the command again. |
+| Windows: no window, the taskbar button flashes | Another window had the focus, so Windows did not bring the dialog to the front. Click the flashing taskbar button. |
+| `Bitwarden setup timed out` | The setup window was not finished within five minutes. Run `bcli vault bw setup` again. |
+| Local fill waits 45 s, then `browser extension not connected yet` | No local session is running, or its browser extension has not connected. Start one with `bcli --env local session create --wait` and check that `bcli vault tabs` lists the page. |
 | Setup fails right after you click **Set up** | Wrong server: EU accounts must choose `bitwarden.eu`. |
 | `bcli bwbridge start` says `no systemd user manager answers here` | Run it in a terminal of your desktop session, not over SSH or `su`. Without systemd: `bcli bwbridge run` in a terminal of the desktop (stops when you close it). |
 | Cloud fill: attach expired | `bcli vault unlock --session <id>` again (Bitwarden attaches last at most 5 minutes). |

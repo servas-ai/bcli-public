@@ -32,7 +32,7 @@ done
 valid_absolute() {
   case "$1" in /*) ;; *) die 'all paths must be absolute' ;; esac
   # [[:cntrl:]], not a \001-\037 range: macOS /bin/bash 3.2 ignores such
-  # ranges under a UTF-8 locale and accepted newlines (DKS-572).
+  # ranges under a UTF-8 locale and accepted newlines.
   case "$1" in *[[:cntrl:]]*) die 'control characters are not allowed in paths' ;; esac
 }
 [ -n "${HOME:-}" ] || die 'HOME is required'
@@ -128,7 +128,7 @@ unload() {
   fi
   # bootout can return while launchd is still tearing the job down (up to its
   # ExitTimeOut of 30 s); an immediate bootstrap then fails with
-  # "5: Input/output error" and leaves no job loaded (DKS-572 MacBook).
+  # "5: Input/output error" and leaves no job loaded.
   local waited=0
   while /bin/launchctl print "$DOMAIN/$1" >/dev/null 2>&1; do
     [ "$waited" -lt 70 ] || die 'existing LaunchAgent did not unload within 35 seconds'

@@ -49,9 +49,10 @@ control or watch that browser until the session ends.
 
 ## Updates and release integrity
 
-- Every release publishes `SHA256SUMS` for all binaries. Verify before running ([how](installation.md#verify-checksums)).
-- From the release that adds `SHA256SUMS.sig`, the checksum list is signed with the servas.ai CLI release key
-  (Ed25519). The public key is in [`keys/bcli-release-ed25519.pem`](../keys/bcli-release-ed25519.pem):
+- Every release publishes `SHA256SUMS` for all binaries. Verify before running ([how](installation.md#verify-checksums));
+  the install scripts and the Homebrew/Scoop manifests do it for you.
+- The checksum list is signed with the servas.ai CLI release key (Ed25519) as `SHA256SUMS.sig`. `install.sh` and
+  `install.ps1` verify that signature before they install anything. The public key is in [`keys/bcli-release-ed25519.pem`](../keys/bcli-release-ed25519.pem):
 
   ```text
   MCowBQYDK2VwAyEAfUyxc9eOwrlMrsEPHYTcYJoVTE8b/Lxj4B4I8lfEk/E=
@@ -59,8 +60,11 @@ control or watch that browser until the session ends.
 
 - `bcli update` verifies that signature and the per-platform hash **before** it downloads and replaces the binary,
   and it never downgrades.
-- The macOS build is not notarized and the Windows build is not Authenticode-signed yet; rely on the checksums and the
-  signature above.
+- bcli is not code-signed: no Windows Authenticode certificate, no Apple Developer ID or notarization. The Ed25519
+  signature above is what proves a file comes from servas.ai. Install from the terminal or a package manager; such
+  downloads carry no internet mark, so Windows and macOS start bcli without a prompt.
+- **Not supported:** machines that only allow signed programs, such as Windows with AppLocker, App Control for Business
+  (WDAC) or Smart App Control enforcing.
 
 ## Your responsibilities
 

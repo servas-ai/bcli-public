@@ -16,14 +16,29 @@ profile and open a new terminal. Windows: open a **new** terminal after installi
 `$env:Path -split ';'`.
 
 **macOS: "bcli cannot be opened because the developer cannot be verified"**
-The binary is not notarized. After verifying the checksum, run `xattr -d com.apple.quarantine ~/.local/bin/bcli` or use
-**System Settings → Privacy & Security → Open Anyway**. See [installation](installation.md#gatekeeper).
+The file was downloaded with a web browser, which marks it with the quarantine flag. bcli is not notarized, so install
+it from the terminal instead: `curl -fsSL https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.sh | sh`
+(or `brew install servas-ai/tap/bcli`). Terminal downloads carry no quarantine flag.
 
 **macOS: "bad CPU type in executable"**
-You are on an Intel Mac. Only Apple silicon is supported.
+The binary does not match the CPU (for example `bcli-darwin-arm64` on an Intel Mac). Run the installer again: it picks
+`bcli-darwin-amd64` on Intel and `bcli-darwin-arm64` on Apple silicon.
 
-**Windows: "Windows protected your PC" (SmartScreen)**
-Verify the checksum, then **More info → Run anyway**. If the file is blocked, `Unblock-File .\bcli.exe`.
+**Windows: "Windows protected your PC", or the file is blocked**
+The file was downloaded with a web browser, which marks it as coming from the internet. Install from PowerShell
+instead (`irm https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.ps1 | iex`, or Scoop): files
+downloaded in the terminal carry no such mark.
+
+**Windows: "This app has been blocked by your system administrator" / blocked by App Control or Smart App Control**
+The machine only allows signed programs (AppLocker, App Control for Business / WDAC, Smart App Control). bcli is not
+code-signed and is not supported on such machines; ask us via [servas.ai](https://servas.ai).
+
+**Installer: "cannot check the Ed25519 signature on this machine"**
+`install.sh` found no working verifier. Install OpenSSL 3, `python3` or `bc` and run it again, or use Homebrew.
+Avoid `--insecure-skip-signature`.
+
+**Installer: "SIGNATURE INVALID" or "CHECKSUM MISMATCH"**
+Nothing was installed. Run it again; if it repeats, do not install from that network and [tell us](../SECURITY.md).
 
 **Checksum mismatch**
 Delete the file and download it again from the release page. If it still does not match, do not run it and
@@ -190,14 +205,14 @@ could be filled — check that the right tab is active (`bcli vault tabs`) and t
 
 ## Updates
 
-**Windows: `bcli update` does not update**
-Expected: `bcli update` / `bcli update --check` print "self-update is not supported on Windows" and exit 0. Run the
-[Windows installation](installation.md#windows) again with the new version.
+**Windows: `bcli update` says a newer version is available but does not install it in the background**
+Expected: the daily background check never replaces bcli while the daemon, the vault or the Bitwarden bridge run. Run
+`bcli update` yourself; it stops and restarts daemon and bridge, and the vault needs one new `bcli vault unlock`.
 
 **`bcli update` refuses to install**
 bcli only installs builds whose checksum list is signed by the servas.ai release key and never downgrades. A
 development build is only replaced with `--force`. The file must be writable by your user — move a system-wide
-install to `~/.local/bin` or update with your package tooling.
+install to `~/.local/bin`, or update with your package manager (`brew upgrade bcli`, `scoop update bcli`).
 
 ## Still stuck?
 

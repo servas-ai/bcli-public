@@ -3,6 +3,37 @@
 All notable changes to bcli are listed here. Releases and binaries:
 [github.com/servas-ai/bcli-public/releases](https://github.com/servas-ai/bcli-public/releases).
 
+## v0.14.0 — first final public release
+
+### Added
+
+- **Terminal installers:** `install.sh` (Linux, macOS) and `install.ps1` (Windows) download from this repository's
+  releases, verify the Ed25519 signature of `SHA256SUMS` and the SHA-256 of the binary, and install per user. Homebrew
+  tap (`brew install servas-ai/tap/bcli`) and Scoop bucket (`scoop install servas/bcli`).
+- **Windows client:** per-user install without administrator rights, named-pipe daemon, local vault in the background
+  (`vault unlock`, `vault lock`, `vault stop`), Edge sessions with the credential extension, cloud sessions with
+  `vault unlock --session`, Bitwarden bridge with a native WebView2 dialog, logon start
+  (`bcli daemon autostart enable [--bwbridge]`), signed self-update (`bcli update`), `bcli uninstall [--purge]`,
+  `bcli --version`.
+- **macOS:** full CLI with the native dialog and the Bitwarden bridge on Apple silicon and, new, on Intel
+  (`bcli-darwin-amd64`).
+- **Several Bitwarden vaults in one approval window:** `bcli vault bw setup --add`; logins are grouped by vault label,
+  account and server; `setup --account ID` relabels an account.
+
+### Changed
+
+- Release assets are the five binaries plus `VERSION`, `SHA256SUMS` and `SHA256SUMS.sig`. There is no
+  `bcli-windows-arm64.exe` anymore (Windows 11 on ARM runs the x64 build) and no separate macOS bundle or extension
+  archive.
+- Documentation describes terminal and package-manager installs only. bcli is not code-signed; machines that only
+  allow signed programs (AppLocker, App Control for Business / WDAC, Smart App Control) are not supported.
+
+### Known issues
+
+- Windows: the first `bcli vault bw autofill` shortly after a new local session opened can fail once
+  (`bw: bridge operation failed`); run it again. The passphrase file is ignored without a message unless its ACL is
+  owner-only. Both are fixed in a later patch release.
+
 ## v0.14.0-rc.2 — second release candidate, first public release
 
 First public build of bcli for Linux, macOS and Windows.

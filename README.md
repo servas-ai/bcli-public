@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/servas-ai/bcli-public/releases"><img alt="Release" src="https://img.shields.io/github/v/release/servas-ai/bcli-public?include_prereleases&sort=semver&label=release&color=6f42c1"></a>
+  <a href="https://github.com/servas-ai/bcli-public/releases"><img alt="Release" src="https://img.shields.io/github/v/release/servas-ai/bcli-public?sort=semver&label=release&color=6f42c1"></a>
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-0aa2c0">
   <img alt="Architectures" src="https://img.shields.io/badge/arch-amd64%20%7C%20arm64-0aa2c0">
   <img alt="License" src="https://img.shields.io/badge/license-proprietary%20%E2%80%93%20free%20with%20a%20servas.ai%20account-555">
@@ -91,96 +91,55 @@ No VPN, no Kubernetes, no proxy contracts and no browser updates on your side. A
 | **Audio** | `bcli audio attach` streams the session's speaker and microphone as PCM, e.g. for voice agents (Linux, macOS). |
 | **Local mode** | `bcli daemon` runs the same session API on your own machine. Same commands, same JSON. |
 | **Agent-first CLI** | Stable JSON on stdout, stable exit codes, ready-made [agent skills](skills/bcli/SKILL.md). |
-| **Signed self-update** | `bcli update` verifies the Ed25519-signed release checksums before replacing itself (Linux and macOS). |
+| **Signed self-update** | `bcli update` verifies the Ed25519-signed release checksums before replacing itself (Linux, macOS and Windows). |
 | **Operated in the EU** | The servas.ai cloud runs in Austria on its own hardware. Sign-in uses OIDC (`auth.servas.ai`); API keys are deprecated. |
 
 ## Install
 
-Pick your platform. Every release ships single static binaries plus a `SHA256SUMS` file.
-Full details, upgrade and uninstall steps: **[docs/installation.md](docs/installation.md)**.
+From a terminal — the installers check the Ed25519 signature of the release and the SHA-256 of the binary before
+they install anything.
+
+**Linux and macOS**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.sh | sh
+```
+
+**Windows** (PowerShell, normal window, no administrator rights)
+
+```powershell
+irm https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.ps1 | iex
+```
+
+**Package managers**
+
+| | Install |
+|---|---|
+| Homebrew (macOS, Linux) | `brew install servas-ai/tap/bcli` |
+| Scoop (Windows) | `scoop bucket add servas https://github.com/servas-ai/scoop-bucket` then `scoop install servas/bcli` |
+| winget (Windows) | `winget install servas.bcli` (submitted; available once merged into the winget community repository) |
+
+A specific release: `... | sh -s -- --version v0.14.0`, or `$env:BCLI_VERSION = "v0.14.0"` before `irm ... | iex`.
+Options, manual install, upgrade and uninstall: **[docs/installation.md](docs/installation.md)**.
 
 | Platform | Asset | Cloud sessions | Local daemon + vault |
 |---|---|:---:|:---:|
 | Linux x86-64 | `bcli-linux-amd64` | ✅ | ✅ |
 | Linux ARM64 | `bcli-linux-arm64` | ✅ | ✅ |
 | macOS Apple silicon | `bcli-darwin-arm64` | ✅ | ✅ |
+| macOS Intel | `bcli-darwin-amd64` | ✅ | ¹ |
 | Windows x86-64 | `bcli-windows-amd64.exe` | ✅ | ✅ |
-| Windows ARM64 | `bcli-windows-arm64.exe` ¹ | ✅ | ✅ |
 
-Local mode needs a Chromium-based browser on the machine; see [Local mode](docs/usage.md#local-mode).
-Intel Macs are not supported. On Windows, `bcli assist` and `bcli audio` are not available; use the live view for
-human hand-over. ¹ Windows ARM64 has no native dialog window. The macOS build of this release candidate has not yet
-been run on Apple silicon (preview).
-Self-update is available on Linux and macOS; on Windows, re-run the installer to update.
+Windows 11 on ARM runs the x64 build through emulation. Local mode needs a Chromium-based browser on the machine; see
+[Local mode](docs/usage.md#local-mode). On Windows, `bcli assist` and `bcli audio` are not available; use the live
+view for human hand-over. ¹ The macOS background-service helper for local mode supports Apple silicon only in this
+release.
 
-Each snippet sets the release to install once at the top (`VERSION=` / `$Version =`); pick it from
-[Releases](https://github.com/servas-ai/bcli-public/releases).
-
-<details open>
-<summary><strong>Linux</strong> (amd64 / arm64)</summary>
-
-```bash
-VERSION=v0.14.0-rc.2                       # the release to install
-ARCH=$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
-BASE=https://github.com/servas-ai/bcli-public/releases/download/$VERSION
-curl -fsSLO "$BASE/bcli-linux-$ARCH"
-curl -fsSLO "$BASE/SHA256SUMS"
-grep " bcli-linux-$ARCH\$" SHA256SUMS | sha256sum --check -
-install -D -m 0755 "bcli-linux-$ARCH" "$HOME/.local/bin/bcli"
-case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *)       # fresh logins may lack ~/.local/bin
-  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc; export PATH="$HOME/.local/bin:$PATH" ;; esac
-bcli version
-```
-</details>
-
-<details>
-<summary><strong>macOS</strong> (Apple silicon)</summary>
-
-```bash
-VERSION=v0.14.0-rc.2                       # the release to install
-BASE=https://github.com/servas-ai/bcli-public/releases/download/$VERSION
-curl -fsSLO "$BASE/bcli-darwin-arm64"
-curl -fsSLO "$BASE/SHA256SUMS"
-grep " bcli-darwin-arm64\$" SHA256SUMS | shasum -a 256 --check -
-mkdir -p "$HOME/.local/bin"
-install -m 0755 bcli-darwin-arm64 "$HOME/.local/bin/bcli"
-xattr -d com.apple.quarantine "$HOME/.local/bin/bcli" 2>/dev/null || true
-case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *)
-  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc; export PATH="$HOME/.local/bin:$PATH" ;; esac
-bcli version
-```
-
-The binary is not notarized by Apple. Files downloaded with a browser carry the quarantine flag and Gatekeeper
-blocks them; the `xattr` line removes it after you verified the checksum.
-</details>
-
-<details>
-<summary><strong>Windows</strong> (PowerShell)</summary>
-
-```powershell
-$Version = "v0.14.0-rc.2"                  # the release to install
-$Base    = "https://github.com/servas-ai/bcli-public/releases/download/$Version"
-$Dir     = "$env:LOCALAPPDATA\Programs\bcli"
-New-Item -ItemType Directory -Force -Path $Dir | Out-Null
-Invoke-WebRequest "$Base/bcli-windows-amd64.exe" -OutFile "$Dir\bcli.exe"
-Invoke-WebRequest "$Base/SHA256SUMS" -OutFile "$Dir\SHA256SUMS"
-$expected = ((Select-String -Path "$Dir\SHA256SUMS" -Pattern ' bcli-windows-amd64\.exe$').Line -split '\s+')[0]
-$actual   = (Get-FileHash "$Dir\bcli.exe" -Algorithm SHA256).Hash.ToLower()
-if ($actual -ne $expected) { throw "Checksum mismatch – do not run this file." }
-$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-if ($userPath -notlike "*$Dir*") { [Environment]::SetEnvironmentVariable("Path", "$userPath;$Dir", "User") }
-if ($env:Path -notlike "*$Dir*") { $env:Path += ";$Dir" }
-bcli version
-```
-
-Use a normal (non-elevated) PowerShell window. SmartScreen may warn about an unknown publisher on first run; verify
-the checksum, then choose **More info → Run anyway**. Windows on ARM: see
-[installation.md](docs/installation.md#windows).
-</details>
-
-**Verify what you downloaded.** Always compare the binary against `SHA256SUMS` before running it (the commands above do).
-From the release that publishes `SHA256SUMS.sig`, you can also verify the checksum file itself against the servas.ai
-release key in [`keys/`](keys/) — see [Verify signatures](docs/installation.md#verify-the-signature-of-sha256sums).
+bcli is not code-signed (no Authenticode, no Apple Developer ID); the Ed25519 signature of `SHA256SUMS` with the
+servas.ai release key in [`keys/`](keys/) is what proves a file is ours. Installed from the terminal, bcli starts
+without a Windows or macOS prompt. **Not supported:** machines that only allow signed programs (AppLocker, App Control
+for Business / WDAC, Smart App Control). See [Verify signatures](docs/installation.md#verify-the-signature-of-sha256sums)
+to check a release by hand.
 
 ## Configuration in one minute
 

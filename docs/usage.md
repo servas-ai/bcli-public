@@ -311,7 +311,7 @@ bcli daemon stop
 - **Linux and macOS:** set `browser_path` in [`config.yaml`](configuration.md#configyaml-reference) or the
   `BAAS_BROWSER_PATH` environment variable to the browser executable, e.g.
   `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`. On macOS the
-  [bundle installer](installation.md#local-mode-on-macos-optional) runs the daemon as a LaunchAgent.
+  [LaunchAgent helper](installation.md#local-mode-on-macos-optional) runs the daemon as a LaunchAgent (Apple silicon).
 
 Local sessions open a real browser window on your desktop. Persistent profiles work locally too; tunnels are not
 needed. Daemon state lives in `~/.bcli/` (`BCLI_HOME`); the daemon log is `~/.bcli/daemon.log`.
@@ -326,8 +326,9 @@ needed. Daemon state lives in `~/.bcli/` (`BCLI_HOME`); the daemon log is `~/.bc
 - **Start bcli from a normal terminal, not from a scheduled task.** If bcli runs inside a Windows job that keeps its
   child processes in the job (for example a Task Scheduler task), the browser extension refuses to fill credentials.
   `bcli daemon start` warns about it, and the daemon log shows `reason=pipe_owner sub=job_contained`.
-- **No autostart.** There is no Windows service yet: after each logon run `bcli daemon start` (and `bcli vault unlock`
-  if you use the vault).
+- **Start at logon.** `bcli daemon autostart enable` starts the daemon at every logon (`--bwbridge` also starts the
+  Bitwarden bridge); `bcli daemon autostart disable` turns it off. The vault still needs one `bcli vault unlock` after
+  each logon, by design. Details: [installation](installation.md#windows).
 - **"Disable developer mode extensions" in Edge.** Every local session loads bcli's credential extension unpacked, so
   Microsoft Edge shows a "Disable developer mode extensions" pop-up each time a session window opens. This is
   expected. Close it with the **×** (do **not** choose "Turn off", or the vault cannot fill logins in that session).

@@ -16,6 +16,7 @@ from pathlib import Path
 
 REPO = "servas-ai/bcli-public"
 BREW_DESC = "Real, headed cloud browsers for agents and tests over CDP (servas.ai)"
+LONG_DESC = "bcli starts real, headed Chromium browsers in the servas.ai cloud (or locally) and hands you a standard Chrome DevTools Protocol endpoint for Playwright, Puppeteer or AI agents. Needs a servas.ai account."
 DESC = "CLI for servas.ai Browser as a Service: real, headed cloud browsers for agents and tests over CDP"
 
 
@@ -126,7 +127,7 @@ end
 
     wdir = out / f"winget/manifests/s/servas/bcli/{version}"
     wdir.mkdir(parents=True, exist_ok=True)
-    schema = "1.10.0"
+    schema = "1.28.0"
     head = "# yaml-language-server: $schema=https://aka.ms/winget-manifest.{kind}.%s.schema.json\n\n" % schema
     (wdir / "servas.bcli.yaml").write_text(head.format(kind="version") + f"""PackageIdentifier: servas.bcli
 PackageVersion: {version}
@@ -157,8 +158,8 @@ PackageName: bcli
 PackageUrl: https://github.com/{REPO}
 License: Proprietary
 LicenseUrl: https://github.com/{REPO}/blob/main/LICENSE
-ShortDescription: {DESC}.
-Description: bcli starts real, headed Chromium browsers in the servas.ai cloud (or locally) and hands you a standard Chrome DevTools Protocol endpoint for Playwright, Puppeteer or AI agents. Needs a servas.ai account.
+ShortDescription: {json.dumps(DESC + ".")}
+Description: {json.dumps(LONG_DESC)}
 Moniker: bcli
 Tags:
 - browser

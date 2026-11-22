@@ -3,6 +3,24 @@
 All notable changes to bcli are listed here. Releases and binaries:
 [github.com/servas-ai/bcli-public/releases](https://github.com/servas-ai/bcli-public/releases).
 
+## v0.14.2 — Windows fixes
+
+### Fixed
+
+- **Autofill right after `session create`:** `vault autofill` and `vault bw autofill` wait up to 45 s
+  (`--ready-timeout`) until the session's browser extension lists the page in `vault tabs`, instead of failing with
+  `bridge operation failed` / `vault operation failed`. A missing extension ends with `browser extension not connected
+  yet`. Nothing is filled and no approval is requested before that.
+- **Windows passphrase file:** a `vault.passphrase` with an inherited ACL is no longer ignored silently; `vault unlock`
+  exits 7 with the `icacls` fix. An empty file is reported.
+- **`update --check` without a cloud environment** says `no cloud environment configured` and how to add one.
+
+### Changed
+
+- `env list` shows only the release part of the server version.
+- Public builds no longer contain the identity of an internal agent mode or the comments of the embedded database
+  schema.
+
 ## v0.14.0 — first final public release
 
 ### Added

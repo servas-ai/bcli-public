@@ -42,11 +42,11 @@ Both install the latest release for your OS and CPU and print the next steps. Th
 A specific release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.sh | sh -s -- --version v0.14.0
+curl -fsSL https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.sh | sh -s -- --version v0.14.2
 ```
 
 ```powershell
-$env:BCLI_VERSION = "v0.14.0"; irm https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.ps1 | iex
+$env:BCLI_VERSION = "v0.14.2"; irm https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.ps1 | iex
 ```
 
 > [!NOTE]
@@ -67,6 +67,14 @@ $env:BCLI_VERSION = "v0.14.0"; irm https://raw.githubusercontent.com/servas-ai/b
 Homebrew tap: [servas-ai/homebrew-tap](https://github.com/servas-ai/homebrew-tap). Scoop bucket:
 [servas-ai/scoop-bucket](https://github.com/servas-ai/scoop-bucket). Both pin the SHA-256 of each binary from the
 signed `SHA256SUMS`. Scoop needs Git to add a bucket: run `scoop install git` first if `scoop bucket add` asks for it.
+
+No Scoop yet? It installs per user, without administrator rights ([scoop.sh](https://scoop.sh)):
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned   # once, if PowerShell refuses to run the installer
+irm get.scoop.sh | iex
+scoop install git
+```
 
 **winget:** the package `servas.bcli` has been submitted to the winget community repository
 ([microsoft/winget-pkgs#486222](https://github.com/microsoft/winget-pkgs/pull/486222)). `winget install servas.bcli`
@@ -218,6 +226,14 @@ bcli vault autofill ID --url https://example.com/login --submit   # {"status":"f
 site, otherwise the fill is refused (`credential origin mismatch`, exit 9). Leave out `--submit` to fill without
 sending the form. `--totp-env VAR` adds a one-time-code secret (`otpauth://` URI).
 
+`bcli vault tabs` lists the tabs the session's browser extension reports to the vault (`ID URL TITLE`). It stays
+empty until the extension has connected, a few seconds after `session create` (up to about 30 s, longest for the first
+session after a `bcli update`). Since v0.14.2 `vault autofill` and `vault bw autofill` wait for it on their own: up to
+45 s (`--ready-timeout`, a duration such as `90s`; `0` = no wait), with one line `vault: waiting up to 45s for the browser extension to report
+the page` on stderr. Nothing is filled and no approval is requested before the page is listed. If the extension does
+not connect in time they exit 1 with `browser extension not connected yet: …`: check that the session still runs and
+that `bcli vault tabs` lists the page, then run the command again.
+
 ### The vault in the background
 
 `bcli vault unlock` starts a background vault process that serves the browser extension. It **locks itself 15
@@ -233,17 +249,21 @@ needs one new unlock too: bcli never stores the passphrase.
 | File | `%USERPROFILE%\.config\bcli\vault.passphrase`, with an owner-only ACL (below) |
 
 **Passphrase file.** bcli reads the file only if its ACL is private: owned by you, inheritance off, exactly one entry
-(you, full control). A file created normally inherits the folder's entries and is **ignored without a message**
-(`bcli vault unlock` then asks for the passphrase, or exits 7 without a terminal). After creating the file (one line,
-the passphrase), run once:
+(you, full control). A file created normally (`Set-Content`, Notepad) inherits the folder's entries. bcli then does not
+use it: `bcli vault unlock` stops with exit 7 and `vault: the passphrase file vault.passphrase exists but was not used:
+its ACL must be owner-only and not inherited. Fix it in PowerShell with: icacls …`, without opening a passphrase prompt
+(v0.14.0 ignored such a file without a message). An empty file is reported the same way. Only `BCLI_VAULT_PASSPHRASE`
+takes precedence over the file; **piped input does not**: while `vault.passphrase` exists, `bcli vault unlock` uses it
+(and fails on a broken, empty or wrong one) even if you pipe the passphrase in. Delete the file to unlock by pipe or
+prompt. (The message's pointer to "Passphrase file" in `WINDOWS-INSTALL.md` means this section.) After creating the file (one line, the passphrase), run once:
 
 ```powershell
 $f = "$env:USERPROFILE\.config\bcli\vault.passphrase"
-icacls $f /inheritance:r /grant:r "${env:USERNAME}:F"
-icacls $f                                   # must show only <PC>\<you>:(F), nothing else
+icacls $f /inheritance:r /grant:r "${env:USERDOMAIN}\${env:USERNAME}:F"
+icacls $f                                   # must show only <PC or domain>\<you>:(F), nothing else
 ```
 
-The folder `.config\bcli` exists after the first `bcli vault unlock`. `bcli vault status` prints `absent`, `locked`
+The folder `.config\bcli` exists after the first `bcli vault unlock`. To use the prompt again, delete the file. `bcli vault status` prints `absent`, `locked`
 or `unlocked`. `bcli vault lock` locks the vault but keeps the background process; `bcli vault stop` locks it and ends
 the process (`--session ID` for the vault of a cloud session).
 
@@ -312,16 +332,15 @@ itself are not affected, and `agent-web` starts through `agent-web.cmd`, which w
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
-### Known issues in v0.14.0
+### Fixed in v0.14.2
 
-Neither blocks use; both are fixed in a later patch release.
+Two minor issues of v0.14.0 on Windows are fixed in v0.14.2:
 
-- **First Bitwarden fill in a new local session can fail once.** When `bcli vault bw autofill` is the first request
-  in a freshly created local session, a few seconds after the page opened, it can end with
-  `bw: bridge operation failed` (exit 1). Run the same command again; it then works. Waiting about 20 seconds after
-  opening the page also avoids it.
-- **Passphrase file ignored without a message** unless its ACL is owner-only and not inherited. Workaround: the
-  `icacls` lines in [The vault in the background](#the-vault-in-the-background).
+- The first `vault bw autofill` or `vault autofill` right after `session create` (or after `bcli update`) failed with
+  `bw: bridge operation failed` / `vault operation failed` while the browser extension had not connected yet. Both now
+  wait for it (see [First start](#first-start)). With v0.14.0: wait until `bcli vault tabs` lists the page.
+- A passphrase file with an inherited ACL was ignored without a message. bcli now stops with exit 7 and prints the
+  `icacls` fix (see [The vault in the background](#the-vault-in-the-background)).
 
 ## Credential extension
 
@@ -338,7 +357,10 @@ and would no longer be updated with bcli.
 bcli does not need Node.js. The [agent-web helper](#agent-web-helper) (via `agent-browser`) and the
 [Node.js example](../examples/) do.
 
-**Windows.** `winget install OpenJS.NodeJS.LTS` (or `scoop install nodejs-lts`), then open a new terminal:
+**Windows.** As a standard user (no administrator rights), use [Scoop](#package-managers):
+`scoop install nodejs-lts`. `winget install OpenJS.NodeJS.LTS` also works, but it installs Node.js for the whole
+machine (it may ask for an administrator), and a freshly created user may not have `winget` until the App Installer
+has been set up for them. Then open a new terminal:
 
 ```powershell
 node --version
@@ -350,8 +372,13 @@ directory so `npm install -g` needs no `sudo` and never fails with `EACCES`:
 
 ```bash
 sudo apt install nodejs npm
+node --version                            # agent-browser needs Node.js 22 or newer
 npm config set prefix "$HOME/.local"      # global packages → ~/.local/bin
 ```
+
+Many distributions still ship an older Node.js (Debian 12: 18, Debian 13: 20, Ubuntu 24.04: 18). If
+`node --version` prints less than 22, install a current LTS from [nodejs.org](https://nodejs.org/en/download)
+instead, for example with `nvm`, which needs no `sudo` and keeps global packages in your home directory.
 
 **macOS.** `brew install node`.
 
@@ -368,7 +395,7 @@ to the cloud browser over CDP; it does not need to download a browser of its own
 <summary><strong>Linux and macOS</strong></summary>
 
 ```bash
-VERSION=v0.14.0                                                      # the release to install
+VERSION=v0.14.2                                                      # the release to install
 curl -fsSL "https://raw.githubusercontent.com/servas-ai/bcli-public/$VERSION/bin/agent-web" -o "$HOME/.local/bin/agent-web"
 chmod +x "$HOME/.local/bin/agent-web"
 npm install -g agent-browser
@@ -380,7 +407,7 @@ agent-web --help
 <summary><strong>Windows</strong> (PowerShell)</summary>
 
 ```powershell
-$Version = "v0.14.0"                                                 # the release to install
+$Version = "v0.14.2"                                                 # the release to install
 $Dir     = "$env:LOCALAPPDATA\Programs\bcli"                         # same folder as bcli.exe, already on PATH
 foreach ($f in "agent-web.cmd", "agent-web-ps.ps1") {
   Invoke-WebRequest -UseBasicParsing "https://raw.githubusercontent.com/servas-ai/bcli-public/$Version/bin/$f" -OutFile "$Dir\$f"
@@ -403,7 +430,7 @@ The installers do exactly this; use it if you want to see every step or cannot p
 <summary><strong>Linux and macOS</strong> (needs OpenSSL 3; on macOS <code>brew install openssl@3</code>)</summary>
 
 ```bash
-VERSION=v0.14.0                                                      # the release to install
+VERSION=v0.14.2                                                      # the release to install
 OS=$(uname -s | tr 'A-Z' 'a-z')                                      # linux or darwin
 ARCH=$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')    # amd64 or arm64
 BASE=https://github.com/servas-ai/bcli-public/releases/download/$VERSION
@@ -426,7 +453,7 @@ PowerShell 5.1 takes minutes for a 25 MB file):
 
 ```powershell
 $ProgressPreference = 'SilentlyContinue'
-$Version = "v0.14.0"
+$Version = "v0.14.2"
 $Base = "https://github.com/servas-ai/bcli-public/releases/download/$Version"
 $Src  = "$env:USERPROFILE\Downloads\$Version"
 New-Item -ItemType Directory -Force -Path $Src | Out-Null
@@ -498,7 +525,7 @@ MCowBQYDK2VwAyEAfUyxc9eOwrlMrsEPHYTcYJoVTE8b/Lxj4B4I8lfEk/E=
 `SHA256SUMS.sig` contains the 64-byte signature, base64-encoded. Verify with OpenSSL 3.x:
 
 ```bash
-VERSION=v0.14.0
+VERSION=v0.14.2
 BASE=https://github.com/servas-ai/bcli-public/releases/download/$VERSION
 curl -fsSLO "$BASE/SHA256SUMS" -O "$BASE/SHA256SUMS.sig"
 curl -fsSLO https://raw.githubusercontent.com/servas-ai/bcli-public/main/keys/bcli-release-ed25519.pem
@@ -541,9 +568,14 @@ place. A Homebrew, Scoop or winget install is best updated with its package mana
 
 ## Uninstalling
 
+Start with `bcli logout` (once per cloud environment: `bcli --env NAME logout`). It deletes the stored sign-in of
+that environment on this machine and says so. It does not revoke the sign-in at the server; that grant ends on its
+own when it expires.
+
 **Linux and macOS:**
 
 ```bash
+bcli logout
 bcli daemon stop 2>/dev/null; rm -f ~/.local/bin/bcli ~/.local/bin/agent-web
 rm -rf ~/.bcli ~/.config/bcli     # optional: login tokens, local state, config and local vault
 ```
@@ -553,6 +585,7 @@ On macOS with local mode, run `./install-macos.sh --uninstall` first. Homebrew: 
 **Windows:**
 
 ```powershell
+bcli logout
 bcli uninstall            # keeps the vault, environments and logs
 bcli uninstall --purge    # also deletes them
 ```
@@ -575,7 +608,7 @@ Check afterwards (all three print nothing):
 
 ```powershell
 Get-Process bcli* -ErrorAction SilentlyContinue
-Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run | Select-Object 'bcli*'
+(Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run).PSObject.Properties.Name -like 'bcli*'
 'Microsoft\Edge', 'Google\Chrome', 'Chromium', 'BraveSoftware\Brave-Browser' |
   ForEach-Object { Get-Item "HKCU:\Software\$_\NativeMessagingHosts\ai.servas.baas.vault" -ErrorAction SilentlyContinue }
 ```

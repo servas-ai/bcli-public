@@ -35,14 +35,17 @@ bcli session create --wait
 
 ```json
 {
-  "id": "01a1ee5e-0000-7000-8000-000000000000",
-  "state": "ready",
   "cdp_url": "https://edge.baas.servas.ai/s/01a1ee5e-…?token=…",
   "cdp_ws_url": "wss://edge.baas.servas.ai/s/01a1ee5e-…/cdp?token=…",
-  "view_url": "https://edge.baas.servas.ai/s/01a1ee5e-…/view?token=…",
+  "chrome_pid": 0,
   "expires_at": "2026-11-18T13:30:00Z",
-  "profile": "",
-  "provision_path": "k8s"
+  "id": "01a1ee5e-0000-7000-8000-000000000000",
+  "profile": null,
+  "provision_path": "pve",
+  "state": "ready",
+  "target": "pve",
+  "terminate_reason": null,
+  "view_url": "https://edge.baas.servas.ai/s/01a1ee5e-…/view?token=…"
 }
 ```
 
@@ -54,7 +57,11 @@ bcli session create --wait
 | `cdp_ws_url` | Raw CDP WebSocket — for libraries that want a `ws://`/`wss://` endpoint |
 | `view_url` | Live view in your own browser |
 | `expires_at` | When the TTL ends the session |
-| `provision_path` | Where the session runs: the cloud runtime, or `local` for sessions of the local daemon |
+| `profile` | The [profile](#profiles-persistent-logins) the session started from, `null` without one |
+| `provision_path` | Where the session runs: the cloud runtime (for example `pve` or `k8s`), or `local` for sessions of the local daemon |
+| `target` | The runtime target the installation picked for the session (cloud only) |
+| `chrome_pid` | Process id of the browser for local sessions; `0` in the cloud |
+| `terminate_reason` | Why the session ended (`client_stop`, `ttl`, `idle`, …); `null` while it runs |
 | `failure_code`, `failure_reason` | Only on failed sessions, see [Exit codes](#exit-codes) |
 
 > [!IMPORTANT]

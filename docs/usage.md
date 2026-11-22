@@ -312,13 +312,21 @@ bcli daemon stop
 `--env local` works without any configuration. To make local the default, `bcli env add local --kind local` and
 `bcli env use local`. If the daemon is not running, local commands fail with `daemon_unavailable` (exit code 5).
 
-**Browser.** Local sessions need a Chromium-based browser executable:
+**Browser.** Local sessions need a Chromium-based browser. bcli picks one itself, in this order:
+`BAAS_BROWSER_PATH`, `browser_path` in [`config.yaml`](configuration.md#configyaml-reference), CloakBrowser
+(`~/.cloakbrowser`), then an installed browser:
 
-- **Windows:** Microsoft Edge or Google Chrome in their standard install locations are used automatically.
-- **Linux and macOS:** set `browser_path` in [`config.yaml`](configuration.md#configyaml-reference) or the
-  `BAAS_BROWSER_PATH` environment variable to the browser executable, e.g.
-  `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`. On macOS the
-  [LaunchAgent helper](installation.md#local-mode-on-macos-optional) runs the daemon as a LaunchAgent (Apple silicon).
+- **Windows:** Microsoft Edge, then Google Chrome, in their standard install locations.
+- **Linux:** Chromium (`/usr/bin/chromium`, `chromium-browser`), Google Chrome (`google-chrome`,
+  `google-chrome-stable`), Microsoft Edge (`microsoft-edge`, `microsoft-edge-stable`).
+- **macOS:** Chromium, Google Chrome, Microsoft Edge in `/Applications` or `~/Applications`. On macOS the
+  browser runs headless. `bcli daemon start` installs the daemon's LaunchAgent itself (run it once in Terminal of your
+  desktop login, not over SSH; over SSH use `bcli daemon run`).
+
+`bcli daemon status` shows the browser it uses, or warns when none is found. Google Chrome 137 and newer ignore the
+`--load-extension` switch; bcli loads its credential extension into Chrome over a private DevTools pipe instead, so
+Chrome works like the others. Brave is not supported: it looks for bcli's native-messaging registration in Google
+Chrome's folder, so the vault cannot reach it.
 
 Local sessions open a real browser window on your desktop. Persistent profiles work locally too; tunnels are not
 needed. Daemon state lives in `~/.bcli/` (`BCLI_HOME`); the daemon log is `~/.bcli/daemon.log`.

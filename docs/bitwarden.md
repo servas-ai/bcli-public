@@ -80,8 +80,11 @@ Local mode needs the local daemon, the local vault and a Chromium-based browser 
 bcli daemon start
 bcli vault unlock                                  # local vault passphrase (once per login)
 bcli --env local session create --wait             # open the login page in that browser window
-bcli vault bw autofill --wait --submit             # active tab of the local session
+bcli --env local vault bw autofill --wait --submit # active tab of the local session
 ```
+
+`--env local` is only needed when another environment (the cloud) is your default; without it bcli treats the request
+as a cloud request and asks for `--session`.
 
 The first request after a bridge start asks for the master password. Then the approval window shows the site, the
 requesting program and the matching logins: **Deny**, **Allow once** or **Always for this site**. Deny exits with
@@ -141,7 +144,10 @@ Logs: Linux `journalctl --user -u bcli-bwbridge`; Windows `bwbridge.log` in `%US
 |---|---|
 | `bwbridge is not running or BWBRIDGE_SOCK points elsewhere` | Start it: `bcli bwbridge start`. Unset an old `BWBRIDGE_SOCK` from earlier test packages. |
 | No window; `dialog: helper failed (… AppArmor …)` | Ubuntu 23.10–25.10: install the [AppArmor profile](#apparmor-ubuntu-2310-to-2510). |
-| No window; `no window possible here` | The bridge has no display (started over SSH or before the desktop) or WebKitGTK 4.1 is missing: install it, then `bcli bwbridge start --restart` in a desktop terminal. |
+| No window; `no window possible here` | The bridge has no display (started over SSH or before the desktop) or WebKitGTK 4.1 is missing: install it, then `bcli bwbridge start --restart` in a desktop terminal. On macOS the bridge runs outside your login session: log in to the Mac's desktop and run `bcli bwbridge start --restart` in Terminal there. |
+| No window; `cannot prepare embedded bcli-prompt: the user cache directory … can be changed by other users` | Other users could swap the approval window in your cache directory: `chmod 700 ~/.cache` (macOS: `~/Library/Caches`), then run the command again. Up to v0.14.5 this also happened with the Debian/Ubuntu default mode 0775 and showed only `bridge operation failed`; since v0.14.6 that mode works. |
+| No window; `~/.cache/bcli is not a private directory of this user` | The folder was created by another user, usually by `sudo bcli …`: `sudo rm -rf ~/.cache/bcli`, then run the command again; bcli creates it again. |
+| `cancelled in the bridge window` | The window was closed or **Cancel** was chosen; nothing changed. Run the command again. |
 | Setup fails right after you click **Set up** | Wrong server: EU accounts must choose `bitwarden.eu`. |
 | `bcli bwbridge start` says `no systemd user manager answers here` | Run it in a terminal of your desktop session, not over SSH or `su`. Without systemd: `bcli bwbridge run` in a terminal of the desktop (stops when you close it). |
 | Cloud fill: attach expired | `bcli vault unlock --session <id>` again (Bitwarden attaches last at most 5 minutes). |

@@ -3,6 +3,24 @@
 All notable changes to bcli are listed here. Releases and binaries:
 [github.com/servas-ai/bcli-public/releases](https://github.com/servas-ai/bcli-public/releases).
 
+## v0.14.6 — Google Chrome for local sessions
+
+### Fixed
+
+- **Google Chrome 137+ in local sessions:** Chrome ignores `--load-extension`, so bcli's credential extension never
+  started and `bcli vault bw autofill` ended with "browser extension not connected yet". bcli now loads the extension
+  into Google Chrome over a private DevTools pipe. Chromium, CloakBrowser and Edge are unchanged.
+- **Bitwarden approval window with `~/.cache` mode 0775** (Debian/Ubuntu with umask 002): the window opens; bcli
+  keeps only `~/.cache/bcli` private. A cache folder other users can change, or a `~/.cache/bcli` of another user,
+  gives a message with cause and fix instead of "bridge operation failed".
+- **Clearer Bitwarden messages:** cancelled window, no display or WebKitGTK, macOS bridge outside the login session.
+
+### Changed
+
+- **Browser choice on Linux and macOS:** without `BAAS_BROWSER_PATH`/`browser_path`, bcli picks CloakBrowser,
+  Chromium, Google Chrome or Microsoft Edge; `bcli daemon status` shows it. Brave is not supported.
+- **macOS:** `bcli daemon start` installs the daemon's LaunchAgent; `install-macos.sh` is no longer needed.
+
 ## v0.14.5 — Bitwarden on Linux and macOS
 
 ### Added

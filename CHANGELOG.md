@@ -3,6 +3,19 @@
 All notable changes to bcli are listed here. Releases and binaries:
 [github.com/servas-ai/bcli-public/releases](https://github.com/servas-ai/bcli-public/releases).
 
+## v0.14.4 — Windows account lockout fixed
+
+### Fixed
+
+- **Windows: local sessions no longer lock your Windows account.** Each `bcli --env local session create` made the
+  session's Edge try one Windows sign-in with an empty password (Edge asks once per fresh profile whether your account
+  password is blank). That logged a failed sign-in (Security event 4625); ten sessions within ten minutes locked the
+  account under the default Windows 11 policy. bcli now gives the session's Edge profile the answer up front, so Edge
+  skips the check. No Edge policy is set and your own Edge profile is not touched.
+- **Bitwarden bridge:** attach failures name their cause (certificate, endpoint, HTTP status, already attached);
+  authentication failures on the bridge side (API key refused, login expired, HTTP 401/403) exit 15.
+- **Local daemon:** starts the browser that `bcli daemon status` reports.
+
 ## v0.14.2 — Windows fixes
 
 ### Fixed

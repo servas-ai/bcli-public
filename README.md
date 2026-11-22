@@ -87,6 +87,7 @@ No VPN, no Kubernetes, no proxy contracts and no browser updates on your side. A
 | **Your own exit IP** | Sessions leave the internet through your tenant's exit node. Run one in your office or data center with a single Docker command: [`servas-ai/baas-exit-docker`](https://github.com/servas-ai/baas-exit-docker). |
 | **localhost in the cloud** | `bcli tunnel start --ports 3000` makes your dev server reachable as `http://localhost:3000` inside the remote browser. |
 | **Credentials without exposure** | The local vault and the bundled credential extension fill usernames, passwords, TOTP codes and passkeys into the page. The agent only references an entry id; it never reads the secret. |
+| **Bitwarden with human approval** | `bcli vault bw` fills logins from your Bitwarden vault (bitwarden.com, bitwarden.eu, self-hosted) into local and cloud sessions after a person approves each one in a native window. Linux, macOS, Windows. |
 | **GPU sessions** | `--gpu` for WebGL, canvas-heavy apps and video. |
 | **Audio** | `bcli audio attach` streams the session's speaker and microphone as PCM, e.g. for voice agents (Linux, macOS). |
 | **Local mode** | `bcli daemon` runs the same session API on your own machine. Same commands, same JSON. |
@@ -174,6 +175,25 @@ bcli update --check
 
 The complete guide — sessions, timers, profiles, exit nodes, tunnels, live view, audio, GPU, local mode, the vault and
 exit codes — is in **[docs/usage.md](docs/usage.md)**.
+
+## Bitwarden
+
+bcli fills logins from your Bitwarden vault after **a person approves each one** in a native window; the agent never
+sees the password. The Bitwarden bridge is part of every `bcli` and runs as your user's background service (Linux:
+systemd user unit, macOS: LaunchAgent, Windows: background process). On Linux and macOS the installer sets it up when
+you run it in a desktop terminal; otherwise:
+
+```bash
+bcli bwbridge start                    # once; starts again at every login (Windows: see the guide)
+bcli vault bw setup                    # window: API key, master password, approval password; EU accounts choose bitwarden.eu
+bcli vault bw autofill --wait --submit                          # local session, active tab
+bcli vault unlock --session <id> && bcli vault bw autofill --session <id> --wait --submit   # cloud session
+```
+
+**Ubuntu/Kubuntu 23.10–25.10** need an AppArmor profile for the approval window once (the installer does it when
+`sudo` needs no password, otherwise it prints this):
+`bcli bwbridge apparmor | sudo tee /etc/apparmor.d/bcli-prompt >/dev/null && sudo apparmor_parser -r /etc/apparmor.d/bcli-prompt`.
+Complete guide: **[docs/bitwarden.md](docs/bitwarden.md)**.
 
 ## Use it from coding agents
 

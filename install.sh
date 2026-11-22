@@ -6,13 +6,17 @@
 #
 # Downloads bcli from the GitHub releases of servas-ai/bcli-public, checks the Ed25519
 # signature of SHA256SUMS against the servas.ai release key built into this script, checks
-# the binary against SHA256SUMS, and installs it as "bcli".
+# the binary against SHA256SUMS, and installs it as "bcli". In a desktop session it then sets
+# up the Bitwarden bridge as a per-user service ("bcli bwbridge start": systemd user unit on
+# Linux, LaunchAgent on macOS) and, on Ubuntu 23.10+ when root or password-less sudo is
+# available, the AppArmor profile of the approval window; otherwise it prints the command.
 #
 # Options:
 #   --version vX.Y.Z   install this release (default: the latest release; env BCLI_VERSION)
 #   --dir DIR          install into DIR (default: /usr/local/bin as root, else ~/.local/bin;
 #                      env BCLI_INSTALL_DIR)
 #   --dry-run          download and verify, print what would be installed, change nothing
+#   --no-bwbridge      do not set up the Bitwarden bridge service (env BCLI_NO_BWBRIDGE=1)
 #   --insecure-skip-signature
 #                      skip the signature check when no verifier is available (not
 #                      recommended: the checksum then only proves the download is complete)
@@ -20,7 +24,9 @@
 #
 # Signature check, first tool that works: OpenSSL 3, python3, or bc (POSIX). The script
 # stops before installing anything if the signature or a checksum does not match.
-# Nothing is written outside the install directory and a temporary directory.
+# Besides the install directory and a temporary directory, only the bridge service
+# (~/.config/systemd/user/bcli-bwbridge.service or ~/Library/LaunchAgents/ai.servas.bcli.bwbridge.plist,
+# both removed by "bcli uninstall") and, with root rights, /etc/apparmor.d/bcli-prompt are written.
 
 set -eu
 
@@ -44,6 +50,7 @@ Options:
   --dir DIR          install directory (default: /usr/local/bin as root, else ~/.local/bin;
                      env BCLI_INSTALL_DIR)
   --dry-run          download and verify only, change nothing
+  --no-bwbridge      skip the Bitwarden bridge service (env BCLI_NO_BWBRIDGE=1)
   --insecure-skip-signature
                      install even when no Ed25519 verifier is available (not recommended)
 EOF
@@ -306,12 +313,92 @@ $(hex_to_file "302a300506032b6570032100$T_KEY" "$tmp/tk.der"; openssl base64 -A 
 }
 
 # ---------------------------------------------------------------------------------------
+# Bitwarden bridge (optional; never fails the install). "bcli bwbridge start" writes and starts
+# the per-user service and is idempotent; older releases without it are skipped.
+
+bw_note() { say "  bitwarden  $*"; }
+AA_SYSCTL=/proc/sys/kernel/apparmor_restrict_unprivileged_userns
+AA_PROFILE=/etc/apparmor.d/bcli-prompt
+
+setup_apparmor() { # setup_apparmor BCLI
+  # Ubuntu 23.10+ confines unprivileged user namespaces; the WebKitGTK sandbox of the approval
+  # window needs the bcli-prompt profile. Debian, Fedora, Ubuntu <= 23.04 and 26.04 do not.
+  [ "$(cat "$AA_SYSCTL" 2>/dev/null)" = 1 ] || return 0
+  "$1" bwbridge apparmor >"$tmp/bcli-prompt.aa" 2>/dev/null </dev/null || return 0
+  if [ -f "$AA_PROFILE" ] && cmp -s "$tmp/bcli-prompt.aa" "$AA_PROFILE"; then
+    bw_note "AppArmor profile bcli-prompt is installed"
+    return 0
+  fi
+  sudo_cmd=""
+  if [ "$(id -u)" = 0 ]; then sudo_cmd=" "
+  elif have sudo && sudo -n true </dev/null >/dev/null 2>&1; then sudo_cmd="sudo -n"
+  fi
+  # apparmor_parser lives in /sbin, which a normal user's PATH often lacks.
+  aa_bin=$(command -v apparmor_parser 2>/dev/null || true)
+  for c in /usr/sbin/apparmor_parser /sbin/apparmor_parser; do
+    if [ -z "$aa_bin" ] && [ -x "$c" ]; then aa_bin=$c; fi
+  done
+  if [ -n "$sudo_cmd" ] && [ -n "$aa_bin" ] &&
+     $sudo_cmd install -m 644 "$tmp/bcli-prompt.aa" "$AA_PROFILE" </dev/null &&
+     $sudo_cmd "$aa_bin" -r "$AA_PROFILE" </dev/null >/dev/null 2>&1; then
+    bw_note "AppArmor profile bcli-prompt installed ($AA_PROFILE)"
+    return 0
+  fi
+  say ""
+  say "This system restricts user namespaces with AppArmor (Ubuntu 23.10+). The Bitwarden approval"
+  say "window needs this profile once (needs sudo):"
+  say "  bcli bwbridge apparmor | sudo tee /etc/apparmor.d/bcli-prompt >/dev/null && sudo apparmor_parser -r /etc/apparmor.d/bcli-prompt"
+  say ""
+}
+
+setup_bitwarden() { # setup_bitwarden BCLI
+  # Releases before v0.14.5 have no bridge service on Linux and macOS.
+  "$1" bwbridge status --help >/dev/null 2>&1 </dev/null || return 0
+  if [ "$OS" = linux ]; then
+    setup_apparmor "$1"
+    if ! { ldconfig -p 2>/dev/null || /sbin/ldconfig -p 2>/dev/null; } | grep -q 'libwebkit2gtk-4\.1\.so\.0'; then
+      bw_note "the approval window needs WebKitGTK 4.1 (Debian/Ubuntu: sudo apt install libwebkit2gtk-4.1-0)"
+    fi
+  fi
+  if [ "$NO_BWBRIDGE" = 1 ]; then
+    bw_note "bridge service skipped (--no-bwbridge); set it up later with: bcli bwbridge start"
+    return 0
+  fi
+  if [ "$(id -u)" = 0 ]; then
+    bw_note "the bridge is a per-user service: run 'bcli bwbridge start' as the desktop user"
+    return 0
+  fi
+  desktop=0
+  if [ "$OS" = darwin ]; then
+    launchctl print "gui/$(id -u)" >/dev/null 2>&1 </dev/null && desktop=1
+  elif [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && systemctl --user show-environment >/dev/null 2>&1 </dev/null; then
+    desktop=1
+  fi
+  if [ "$desktop" = 0 ]; then
+    bw_note "no desktop session here; in a terminal of your desktop run: bcli bwbridge start"
+    return 0
+  fi
+  if out=$("$1" bwbridge start --restart </dev/null 2>&1); then
+    if [ "$OS" = darwin ]; then
+      bw_note "bridge running (LaunchAgent ai.servas.bcli.bwbridge, starts at login)"
+    else
+      bw_note "bridge running (systemd user unit bcli-bwbridge.service, starts at desktop login)"
+    fi
+    bw_note "set up your Bitwarden account: bcli vault bw setup   (remove: bcli bwbridge remove)"
+  else
+    printf '%s\n' "$out" | sed 's/^/  bitwarden  /' >&2
+    bw_note "bridge not started; retry in a desktop terminal: bcli bwbridge start"
+  fi
+}
+
+# ---------------------------------------------------------------------------------------
 
 main() {
   VERSION=${BCLI_VERSION:-}
   DIR=${BCLI_INSTALL_DIR:-}
   DRY=0
   SKIP_SIG=0
+  NO_BWBRIDGE=${BCLI_NO_BWBRIDGE:-0}
   while [ $# -gt 0 ]; do
     case "$1" in
       --version) [ $# -ge 2 ] || die "--version needs a value"; VERSION=$2; shift 2 ;;
@@ -319,6 +406,7 @@ main() {
       --dir) [ $# -ge 2 ] || die "--dir needs a value"; DIR=$2; shift 2 ;;
       --dir=*) DIR=${1#*=}; shift ;;
       --dry-run) DRY=1; shift ;;
+      --no-bwbridge) NO_BWBRIDGE=1; shift ;;
       --insecure-skip-signature) SKIP_SIG=1; shift ;;
       -h|--help) usage; exit 0 ;;
       *) die "unknown option $1 (see --help)" ;;
@@ -411,6 +499,7 @@ main() {
     fi
     say ""
   fi
+  setup_bitwarden "$DIR/bcli"
   say "Next steps:"
   say "  bcli env add cloud --kind cloud --endpoint https://api.baas.servas.ai && bcli env use cloud"
   say "  bcli login                   # sign in with your servas.ai account (device code)"

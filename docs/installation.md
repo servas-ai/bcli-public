@@ -39,6 +39,11 @@ irm https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.ps1 | i
 Both install the latest release for your OS and CPU and print the next steps. Then
 [sign in](configuration.md) and [create your first session](usage.md).
 
+On Linux and macOS, run in a terminal of your desktop session, `install.sh` also starts the
+[Bitwarden bridge](bitwarden.md) as your user's background service (`bcli bwbridge start`: systemd user unit or
+LaunchAgent) and, on Ubuntu/Kubuntu 23.10–25.10, installs the AppArmor profile of its approval window when `sudo` needs
+no password; otherwise it prints the one command to run. `--no-bwbridge` skips the bridge.
+
 A specific release:
 
 ```bash
@@ -105,6 +110,7 @@ of this repository and stop before installing anything if a check fails:
 | `--version vX.Y.Z` or `BCLI_VERSION` | `$env:BCLI_VERSION` | Install this release instead of the latest |
 | `--dir DIR` or `BCLI_INSTALL_DIR` | `$env:BCLI_INSTALL_DIR` | Install into DIR |
 | `--dry-run` | `$env:BCLI_DRY_RUN = "1"` | Download and verify only, change nothing |
+| `--no-bwbridge` or `BCLI_NO_BWBRIDGE=1` | — | Do not set up the [Bitwarden bridge](bitwarden.md) service (Linux, macOS) |
 | `--insecure-skip-signature` | — | Install even when no signature verifier is available. **Not recommended:** the checksum then only proves that the download is complete |
 
 Default install locations:
@@ -152,6 +158,12 @@ Works on any distribution with a 64-bit kernel; the binary has no shared-library
 write there. [Self-update](#updating) needs write access to the file, so a user-owned location such as
 `~/.local/bin` is recommended.
 
+**Bitwarden bridge.** `bcli bwbridge start` installs it as the systemd user unit `bcli-bwbridge.service`
+(`~/.config/systemd/user/`), which starts with your desktop session and stops at logout. The approval window needs
+WebKitGTK 4.1 (`libwebkit2gtk-4.1-0`) and, on Ubuntu/Kubuntu 23.10–25.10, an AppArmor profile:
+`bcli bwbridge apparmor | sudo tee /etc/apparmor.d/bcli-prompt >/dev/null && sudo apparmor_parser -r /etc/apparmor.d/bcli-prompt`.
+Guide: [bitwarden.md](bitwarden.md).
+
 ## macOS
 
 Apple silicon and Intel Macs are supported. Use the [quick install](#quick-install) or Homebrew. The installer works
@@ -159,10 +171,14 @@ with the tools of a stock macOS: the system `openssl` there is LibreSSL without 
 `python3` (when the Command Line Tools are installed) or `bc`. The Go linker gives the Apple silicon binary the ad-hoc
 signature macOS requires; a binary downloaded in the terminal carries no quarantine flag and starts without a prompt.
 
+**Bitwarden bridge.** `bcli bwbridge start` installs it as the LaunchAgent `ai.servas.bcli.bwbridge`
+(`~/Library/LaunchAgents/`), on Apple silicon and Intel; Homebrew users run it once after `brew install`. Guide:
+[bitwarden.md](bitwarden.md).
+
 ### Local mode on macOS (optional)
 
 For [local mode](usage.md#local-mode) the local daemon and the Bitwarden bridge run as per-user LaunchAgents (no root,
-no system service), so they start again after every login.
+no system service), so they start again after every login. (For the bridge alone, `bcli bwbridge start` is enough.)
 [`scripts/macos/install-macos.sh`](../scripts/macos/install-macos.sh) sets them up. It needs the absolute path of the
 Chromium-based browser the daemon should launch. In v0.14.0 it supports **Apple silicon only**; on Intel Macs use
 cloud sessions.
@@ -284,7 +300,8 @@ Ctrl+C. `bcli vault stop --session ID` ends the background attach.
 ### Bitwarden (optional)
 
 bcli can fill logins from a Bitwarden vault, each one after a person approves it in a native dialog. The Bitwarden
-bridge (`bcli bwbridge`) keeps the Bitwarden keys in memory and opens the dialogs.
+bridge (`bcli bwbridge`) keeps the Bitwarden keys in memory and opens the dialogs. The full guide for all platforms
+is [bitwarden.md](bitwarden.md); the Windows specifics follow.
 
 1. In the Bitwarden web vault create an API key: **Settings → Security → Keys → View API key**
    (`client_id`, `client_secret`).
@@ -577,15 +594,23 @@ Start with `bcli logout` (once per cloud environment: `bcli --env NAME logout`).
 that environment on this machine and says so. It does not revoke the sign-in at the server; that grant ends on its
 own when it expires.
 
-**Linux and macOS:**
+**Linux and macOS** (v0.14.5 and newer):
 
 ```bash
 bcli logout
-bcli daemon stop 2>/dev/null; rm -f ~/.local/bin/bcli ~/.local/bin/agent-web
-rm -rf ~/.bcli ~/.config/bcli     # optional: login tokens, local state, config and local vault
+bcli uninstall            # keeps the vault, environments, Bitwarden bridge state and logs
+bcli uninstall --purge    # also deletes them
+rm -f ~/.local/bin/agent-web   # if you installed the agent-web helper
 ```
 
-On macOS with local mode, run `./install-macos.sh --uninstall` first. Homebrew: `brew uninstall bcli`.
+`bcli uninstall` reports each step: it removes the Bitwarden bridge service (systemd user unit
+`bcli-bwbridge.service` or LaunchAgent `ai.servas.bcli.bwbridge`), stops the background vault and the daemon, removes
+the daemon LaunchAgent of the macOS local-mode helper, deletes the unpacked approval window (`~/.cache/bcli`,
+macOS `~/Library/Caches/bcli`) and the `bcli` file itself. Run it as your user, not with `sudo`. A bcli in a
+root-owned directory, and the AppArmor profile `/etc/apparmor.d/bcli-prompt`, are printed with the `sudo` command to
+remove them. Homebrew: `bcli uninstall`, then `brew uninstall bcli`. User data kept without `--purge`: `~/.bcli`,
+`~/.config/bcli` (the vault, environments) and `~/.config/bwbridge`. Older bcli versions: `bcli daemon stop`, then
+delete the file and these folders by hand.
 
 **Windows:**
 

@@ -47,11 +47,11 @@ no password; otherwise it prints the one command to run. `--no-bwbridge` skips t
 A specific release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.sh | sh -s -- --version v0.14.5
+curl -fsSL https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.sh | sh -s -- --version v0.14.6
 ```
 
 ```powershell
-$env:BCLI_VERSION = "v0.14.5"; irm https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.ps1 | iex
+$env:BCLI_VERSION = "v0.14.6"; irm https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.ps1 | iex
 ```
 
 > [!NOTE]
@@ -413,7 +413,7 @@ to the cloud browser over CDP; it does not need to download a browser of its own
 <summary><strong>Linux and macOS</strong></summary>
 
 ```bash
-VERSION=v0.14.5                                                      # the release to install
+VERSION=v0.14.6                                                      # the release to install
 curl -fsSL "https://raw.githubusercontent.com/servas-ai/bcli-public/$VERSION/bin/agent-web" -o "$HOME/.local/bin/agent-web"
 chmod +x "$HOME/.local/bin/agent-web"
 npm install -g agent-browser
@@ -425,7 +425,7 @@ agent-web --help
 <summary><strong>Windows</strong> (PowerShell)</summary>
 
 ```powershell
-$Version = "v0.14.5"                                                 # the release to install
+$Version = "v0.14.6"                                                 # the release to install
 $Dir     = "$env:LOCALAPPDATA\Programs\bcli"                         # same folder as bcli.exe, already on PATH
 foreach ($f in "agent-web.cmd", "agent-web-ps.ps1") {
   Invoke-WebRequest -UseBasicParsing "https://raw.githubusercontent.com/servas-ai/bcli-public/$Version/bin/$f" -OutFile "$Dir\$f"
@@ -448,7 +448,7 @@ The installers do exactly this; use it if you want to see every step or cannot p
 <summary><strong>Linux and macOS</strong> (needs OpenSSL 3; on macOS <code>brew install openssl@3</code>)</summary>
 
 ```bash
-VERSION=v0.14.5                                                      # the release to install
+VERSION=v0.14.6                                                      # the release to install
 OS=$(uname -s | tr 'A-Z' 'a-z')                                      # linux or darwin
 ARCH=$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')    # amd64 or arm64
 BASE=https://github.com/servas-ai/bcli-public/releases/download/$VERSION
@@ -471,7 +471,7 @@ PowerShell 5.1 takes minutes for a 25 MB file):
 
 ```powershell
 $ProgressPreference = 'SilentlyContinue'
-$Version = "v0.14.5"
+$Version = "v0.14.6"
 $Base = "https://github.com/servas-ai/bcli-public/releases/download/$Version"
 $Src  = "$env:USERPROFILE\Downloads\$Version"
 New-Item -ItemType Directory -Force -Path $Src | Out-Null
@@ -543,7 +543,7 @@ MCowBQYDK2VwAyEAfUyxc9eOwrlMrsEPHYTcYJoVTE8b/Lxj4B4I8lfEk/E=
 `SHA256SUMS.sig` contains the 64-byte signature, base64-encoded. Verify with OpenSSL 3.x:
 
 ```bash
-VERSION=v0.14.5
+VERSION=v0.14.6
 BASE=https://github.com/servas-ai/bcli-public/releases/download/$VERSION
 curl -fsSLO "$BASE/SHA256SUMS" -O "$BASE/SHA256SUMS.sig"
 curl -fsSLO https://raw.githubusercontent.com/servas-ai/bcli-public/main/keys/bcli-release-ed25519.pem

@@ -129,8 +129,8 @@ Pass options to `install.sh` after `sh -s --`, for example `... | sh -s -- --dir
 |---|---|:---:|:---:|
 | Linux x86-64 | `bcli-linux-amd64` | yes | yes |
 | Linux ARM64 | `bcli-linux-arm64` | yes | yes |
-| macOS Apple silicon | `bcli-darwin-arm64` | yes | yes |
-| macOS Intel | `bcli-darwin-amd64` | yes | see [macOS](#macos) |
+| macOS Apple silicon | `bcli-darwin-arm64` | yes | preview, see [macOS](#macos) |
+| macOS Intel | `bcli-darwin-amd64` | yes (not yet tested on hardware) | preview, see [macOS](#macos) |
 | Windows 10/11 x86-64 | `bcli-windows-amd64.exe` | yes | yes |
 
 Every [release](https://github.com/servas-ai/bcli-public/releases) publishes exactly these files:
@@ -166,8 +166,13 @@ Guide: [bitwarden.md](bitwarden.md).
 
 ## macOS
 
-Apple silicon and Intel Macs are supported. Use the [quick install](#quick-install) or Homebrew. The installer works
-with the tools of a stock macOS: the system `openssl` there is LibreSSL without Ed25519, so it falls back to
+> [!NOTE]
+> **macOS:** installation and cloud sessions (including cloud autofill from the local vault) are tested on Apple silicon.
+> Local mode and Bitwarden on macOS (local sessions, the approval window and the fills that need it) are a preview
+> and not yet acceptance-tested. The Intel build (`bcli-darwin-amd64`) has not been tested on hardware yet.
+
+Builds for Apple silicon and Intel Macs are published. Use the [quick install](#quick-install) or Homebrew. The
+installer works with the tools of a stock macOS: the system `openssl` there is LibreSSL without Ed25519, so it falls back to
 `python3` (when the Command Line Tools are installed) or `bc`. The Go linker gives the Apple silicon binary the ad-hoc
 signature macOS requires; a binary downloaded in the terminal carries no quarantine flag and starts without a prompt.
 
@@ -175,7 +180,7 @@ signature macOS requires; a binary downloaded in the terminal carries no quarant
 (`~/Library/LaunchAgents/`), on Apple silicon and Intel; Homebrew users run it once after `brew install`. Guide:
 [bitwarden.md](bitwarden.md).
 
-### Local mode on macOS (optional)
+### Local mode on macOS (optional, preview)
 
 For [local mode](usage.md#local-mode) the local daemon and the Bitwarden bridge run as per-user LaunchAgents (no root,
 no system service), so they start again after every login. Run both once in Terminal of your desktop login (not over
@@ -313,6 +318,10 @@ is [bitwarden.md](bitwarden.md); the Windows specifics follow.
    this session** (cloud). Deny exits with code 12. Cloud sessions need the vault attached first
    (`bcli vault unlock --session ID`); with Bitwarden an attach can approve logins for at most 5 minutes, then the next
    login needs `vault unlock --session ID` again.
+
+The bridge opens its windows from the background. When another window has the focus (for example the Start menu),
+Windows may not bring the dialog to the front and only flashes its taskbar button: click it. Up to v0.14.6
+`bcli bwbridge start` prints nothing when it succeeds; `bcli bwbridge status` shows that the bridge runs.
 
 | Bridge | Command |
 | --- | --- |
@@ -559,10 +568,16 @@ brings its own verifier. On Windows use [`scripts/windows/verify-release.ps1`](.
 
 ## Updating
 
+`bcli update` installs **the version your cloud environment ships**, not the newest GitHub release. It asks the API
+server of your cloud environment (`https://api.baas.servas.ai` for the servas.ai cloud), so it needs a cloud
+environment and a sign-in (`bcli login`). After a new release the servas.ai cloud may ship it a little later than
+GitHub; until then `bcli update` reports that you are up to date. Without a cloud environment (local mode only), or to
+get a GitHub release right away, update with the installer or your package manager instead (see below).
+
 Release builds keep themselves current on **Linux, macOS and Windows**: once a day bcli checks the API server of your
 cloud environment in the background and installs a newer version if there is one (log: `~/.bcli/update.log`, on
 Windows `%USERPROFILE%\.bcli\update.log`). Every update is verified against the signed checksum list before it
-replaces the binary; bcli never downgrades.
+replaces the binary; bcli never downgrades, so a newer version from the installer stays installed.
 
 ```bash
 bcli update --check     # only report whether a newer version is available
@@ -571,8 +586,11 @@ bcli --env NAME update  # update from a specific environment
 ```
 
 Turn the background check off with `BCLI_NO_AUTO_UPDATE=1` or `auto_update: false` in
-[`config.yaml`](configuration.md). The binary must be writable by your user. A running local daemon keeps the old
-version until you restart it (`bcli daemon stop && bcli daemon start`).
+[`config.yaml`](configuration.md). The binary must be writable by your user.
+
+**Linux and macOS.** A running local daemon and Bitwarden bridge keep the old version until you restart them:
+`bcli daemon stop && bcli daemon start`, and `bcli bwbridge start --restart` (the bridge locks; unlock it again when
+asked). The same applies after the installer, `brew upgrade` or a manual install.
 
 **Windows.** The running `bcli.exe` is renamed aside (`.bcli-replaced-<random>.old` in the same folder) and the new
 file takes its name, so `PATH`, the logon start and the browser registration stay valid. A running daemon and
@@ -580,9 +598,9 @@ Bitwarden bridge are stopped and started again from the new file; a background v
 `bcli vault unlock`. The daily background check never installs while daemon, vault or bridge run; it notes the
 available version instead.
 
-**Package managers and the installers.** Running the [installer](#quick-install) again installs the latest release in
-place. A Homebrew, Scoop or winget install is best updated with its package manager (`brew upgrade bcli`,
-`scoop update bcli`, `winget upgrade servas.bcli`).
+**Package managers and the installers.** Running the [installer](#quick-install) again installs the latest GitHub
+release in place; this works without a cloud environment. A Homebrew, Scoop or winget install is best updated with its
+package manager (`brew upgrade bcli`, `scoop update bcli`, `winget upgrade servas.bcli`).
 
 ## Uninstalling
 
@@ -606,7 +624,9 @@ macOS `~/Library/Caches/bcli`) and the `bcli` file itself. Run it as your user, 
 root-owned directory, and the AppArmor profile `/etc/apparmor.d/bcli-prompt`, are printed with the `sudo` command to
 remove them. Homebrew: `bcli uninstall`, then `brew uninstall bcli`. User data kept without `--purge`: `~/.bcli`,
 `~/.config/bcli` (the vault, environments) and `~/.config/bwbridge`. Older bcli versions: `bcli daemon stop`, then
-delete the file and these folders by hand.
+delete the file and these folders by hand. On macOS an empty folder
+`~/Library/Application Support/Google/Chrome/NativeMessagingHosts` can remain after `--purge`; it is harmless, and you
+can delete it if you do not use Google Chrome.
 
 **Windows:**
 

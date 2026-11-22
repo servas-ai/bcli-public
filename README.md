@@ -87,12 +87,12 @@ No VPN, no Kubernetes, no proxy contracts and no browser updates on your side. A
 | **Your own exit IP** | Sessions leave the internet through your tenant's exit node. Run one in your office or data center with a single Docker command: [`servas-ai/baas-exit-docker`](https://github.com/servas-ai/baas-exit-docker). |
 | **localhost in the cloud** | `bcli tunnel start --ports 3000` makes your dev server reachable as `http://localhost:3000` inside the remote browser. |
 | **Credentials without exposure** | The local vault and the bundled credential extension fill usernames, passwords, TOTP codes and passkeys into the page. The agent only references an entry id; it never reads the secret. |
-| **Bitwarden with human approval** | `bcli vault bw` fills logins from your Bitwarden vault (bitwarden.com, bitwarden.eu, self-hosted) into local and cloud sessions after a person approves each one in a native window. Linux, macOS, Windows. |
+| **Bitwarden with human approval** | `bcli vault bw` fills logins from your Bitwarden vault (bitwarden.com, bitwarden.eu, self-hosted) into local and cloud sessions after a person approves each one in a native window. Linux and Windows; macOS as a preview ¹. |
 | **GPU sessions** | `--gpu` for WebGL, canvas-heavy apps and video. |
 | **Audio** | `bcli audio attach` streams the session's speaker and microphone as PCM, e.g. for voice agents (Linux, macOS). |
 | **Local mode** | `bcli daemon` runs the same session API on your own machine. Same commands, same JSON. |
 | **Agent-first CLI** | Stable JSON on stdout, stable exit codes, ready-made [agent skills](skills/bcli/SKILL.md). |
-| **Signed self-update** | `bcli update` verifies the Ed25519-signed release checksums before replacing itself (Linux, macOS and Windows). |
+| **Signed self-update** | `bcli update` installs the version your cloud environment ships and verifies the Ed25519-signed release checksums before replacing itself (Linux, macOS and Windows; needs a cloud environment and `bcli login`). |
 | **Operated in the EU** | The servas.ai cloud runs in Austria on its own hardware. Sign-in uses OIDC (`auth.servas.ai`); API keys are deprecated. |
 
 ## Install
@@ -127,14 +127,17 @@ Options, manual install, upgrade and uninstall: **[docs/installation.md](docs/in
 |---|---|:---:|:---:|
 | Linux x86-64 | `bcli-linux-amd64` | ✅ | ✅ |
 | Linux ARM64 | `bcli-linux-arm64` | ✅ | ✅ |
-| macOS Apple silicon | `bcli-darwin-arm64` | ✅ | ✅ |
-| macOS Intel | `bcli-darwin-amd64` | ✅ | ¹ |
+| macOS Apple silicon | `bcli-darwin-arm64` | ✅ | preview ¹ |
+| macOS Intel | `bcli-darwin-amd64` | ✅ ¹ | preview ¹ |
 | Windows x86-64 | `bcli-windows-amd64.exe` | ✅ | ✅ |
 
 Windows 11 on ARM runs the x64 build through emulation. Local mode needs a Chromium-based browser on the machine; see
 [Local mode](docs/usage.md#local-mode). On Windows, `bcli assist` and `bcli audio` are not available; use the live
-view for human hand-over. ¹ The macOS background-service helper for local mode supports Apple silicon only in this
-release.
+view for human hand-over.
+
+¹ **macOS:** installation and cloud sessions (including cloud autofill from the local vault) are tested on Apple silicon.
+Local mode and Bitwarden on macOS (local sessions, the approval window and the fills that need it) are a preview
+and not yet acceptance-tested. The Intel build (`bcli-darwin-amd64`) has not been tested on hardware yet.
 
 bcli is not code-signed (no Authenticode, no Apple Developer ID); the Ed25519 signature of `SHA256SUMS` with the
 servas.ai release key in [`keys/`](keys/) is what proves a file is ours. Installed from the terminal, bcli starts
@@ -170,7 +173,7 @@ bcli profile create shop-1 --locale de-DE --timezone Europe/Berlin
 bcli profile list
 bcli exit-node list
 bcli tunnel start --session <id> --ports 3000           # your localhost inside the remote browser
-bcli update --check
+bcli update --check                                     # the version your cloud environment ships
 ```
 
 The complete guide — sessions, timers, profiles, exit nodes, tunnels, live view, audio, GPU, local mode, the vault and
@@ -193,7 +196,8 @@ bcli vault unlock --session <id> && bcli vault bw autofill --session <id> --wait
 **Ubuntu/Kubuntu 23.10–25.10** need an AppArmor profile for the approval window once (the installer does it when
 `sudo` needs no password, otherwise it prints this):
 `bcli bwbridge apparmor | sudo tee /etc/apparmor.d/bcli-prompt >/dev/null && sudo apparmor_parser -r /etc/apparmor.d/bcli-prompt`.
-Complete guide: **[docs/bitwarden.md](docs/bitwarden.md)**.
+On macOS, Bitwarden is a preview, see ¹ above. Complete guide:
+**[docs/bitwarden.md](docs/bitwarden.md)**.
 
 ## Use it from coding agents
 

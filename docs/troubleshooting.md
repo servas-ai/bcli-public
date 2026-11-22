@@ -187,10 +187,16 @@ Microsoft Edge or Google Chrome in the default location.
 **`bcli daemon status` says it is not running after an update**
 Restart it: `bcli daemon stop && bcli daemon start`.
 
+**`vault autofill` or `vault bw autofill` waits 45 s, then `browser extension not connected yet`**
+No local session is running, or its browser has not loaded bcli's extension yet. Start a session
+(`bcli --env local session create --wait`), wait until `bcli vault tabs` lists the page, then run the command again.
+For a cloud session add `--session <id>`.
+
 **Vault: exit code 7**
 The vault is locked, does not exist yet, or the passphrase is wrong; the message names the command to run. Local:
 `bcli vault unlock`. Cloud session: `bcli vault unlock --session <id>`. The unlock stays active in the background
-until `bcli vault lock`, logout or reboot (on Windows: per logon session, from a non-elevated terminal).
+for 15 minutes or until `bcli vault lock`, logout or reboot (on Windows: per logon session, from a non-elevated
+terminal).
 
 **Vault: exit code 8**
 No vault is bound to that cloud session (or the binding ended with the session): `bcli vault unlock --session <id>`.
@@ -204,6 +210,16 @@ that contains `token=` before sharing the output.
 could be filled — check that the right tab is active (`bcli vault tabs`) and the login form is visible.
 
 ## Updates
+
+**`bcli update` says `no cloud environment configured`, or that you are up to date although GitHub has a newer release**
+`bcli update` installs the version your cloud environment ships, so it needs a cloud environment and `bcli login`.
+The servas.ai cloud can ship a new release a little after it appears on GitHub. To install the newest GitHub release
+now, or without a cloud environment, run the [installer](installation.md#quick-install) again or use your package
+manager (`brew upgrade bcli`, `scoop update bcli`).
+
+**Linux/macOS: the Bitwarden bridge still runs the old version after an update**
+`bcli bwbridge start --restart` (the bridge locks; unlock it again when asked). The local daemon:
+`bcli daemon stop && bcli daemon start`.
 
 **Windows: `bcli update` says a newer version is available but does not install it in the background**
 Expected: the daily background check never replaces bcli while the daemon, the vault or the Bitwarden bridge run. Run

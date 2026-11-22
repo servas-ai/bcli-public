@@ -95,7 +95,7 @@ Durations use Go syntax: `90s`, `45m`, `2h`.
 ### Inspect and stop
 
 ```bash
-bcli session list --json      # your running sessions
+bcli session list --json      # your running sessions (JSON with the URLs, including their tokens)
 bcli session get <id> --json  # one session, including state and failure details
 bcli session url <id>         # print cdp_url again (same token, not a new one)
 bcli session stop <id>        # end it now
@@ -319,17 +319,17 @@ bcli daemon stop
 - **Windows:** Microsoft Edge, then Google Chrome, in their standard install locations.
 - **Linux:** Chromium (`/usr/bin/chromium`, `chromium-browser`), Google Chrome (`google-chrome`,
   `google-chrome-stable`), Microsoft Edge (`microsoft-edge`, `microsoft-edge-stable`).
-- **macOS:** Chromium, Google Chrome, Microsoft Edge in `/Applications` or `~/Applications`. On macOS the
-  browser runs headless. `bcli daemon start` installs the daemon's LaunchAgent itself (run it once in Terminal of your
-  desktop login, not over SSH; over SSH use `bcli daemon run`).
+- **macOS** (preview, not yet acceptance-tested): Chromium, Google Chrome, Microsoft Edge in `/Applications` or
+  `~/Applications`. On macOS the browser runs headless. `bcli daemon start` installs the daemon's LaunchAgent itself
+  (run it once in Terminal of your desktop login, not over SSH; over SSH use `bcli daemon run`).
 
 `bcli daemon status` shows the browser it uses, or warns when none is found. Google Chrome 137 and newer ignore the
 `--load-extension` switch; bcli loads its credential extension into Chrome over a private DevTools pipe instead, so
 Chrome works like the others. Brave is not supported: it looks for bcli's native-messaging registration in Google
 Chrome's folder, so the vault cannot reach it.
 
-Local sessions open a real browser window on your desktop. Persistent profiles work locally too; tunnels are not
-needed. Daemon state lives in `~/.bcli/` (`BCLI_HOME`); the daemon log is `~/.bcli/daemon.log`.
+On Linux and Windows, local sessions open a real browser window on your desktop. Persistent profiles work locally
+too; tunnels are not needed. Daemon state lives in `~/.bcli/` (`BCLI_HOME`); the daemon log is `~/.bcli/daemon.log`.
 
 ### Windows notes
 
@@ -357,9 +357,10 @@ needed. Daemon state lives in `~/.bcli/` (`BCLI_HOME`); the daemon log is `~/.bc
 bcli has a local, encrypted credential vault. A browser extension built into bcli fills usernames, passwords and TOTP
 codes **into the page** — the agent references an entry by id and never sees the secret.
 
-`bcli vault unlock` asks for your passphrase and then keeps the vault unlocked **in the background** until you run
-`bcli vault lock`, log out, or reboot. There is nothing else to keep running. Vault commands that need an unlocked vault
-exit with code 7 and tell you which command to run.
+`bcli vault unlock` asks for your passphrase and then keeps the vault unlocked **in the background**. It locks again
+by itself after 15 minutes, and when you run `bcli vault lock`, log out or reboot (on Windows also after
+`bcli update`). There is nothing else to keep running. Vault commands that need an unlocked vault exit with code 7
+and tell you which command to run.
 
 ### Local sessions
 
@@ -428,7 +429,8 @@ bound to the session · `9` page origin does not match the credential · `10` no
 ## Output and scripting
 
 - `session create`, `session list` and `session get` always print JSON. Add `--json` to other commands
-  (`env list`, `whoami`, `tenant`, `exit-node list`, …) for JSON output.
+  (`env list`, `whoami`, `tenant`, `exit-node list`, …) for JSON output. The session commands print the session URLs
+  with their access tokens: do not paste that output into tickets or chats unredacted.
 - Errors go to stderr, usually as `code=<error_code>: <message>`; stdout stays clean for parsing.
 - Every failure has a stable [exit code](#exit-codes).
 
@@ -506,11 +508,16 @@ bcli audio attach --session ID [--dir both|out|in] [--channels 1|2] [--socket PA
 bcli assist --session ID [--mode captcha|window] [--rect x,y,w,h] [--heading TEXT] [--hint TEXT]  (not on Windows)
 
 bcli daemon start [--detach] | run | status | stop
+bcli daemon autostart enable [--bwbridge] | disable | status                           (Windows)
 bcli vault unlock [--session ID] | lock | status
 bcli vault list [--url URL] | get ID | create … | totp ID | tabs                      [--session ID]
 bcli vault autofill ID [--tab ID|active] [--url URL] [--fields a,b] [--submit]       [--session ID]
 bcli vault passkey list | allow-create --rp RP [--ttl D]                             [--session ID]
 bcli vault attach [--session ID]          (foreground variant of unlock; rarely needed)
+
+bcli bwbridge start [--restart] | stop | status | remove | apparmor   (remove: Linux/macOS, apparmor: Linux)
+bcli vault bw setup [--add] | status | autofill [--session ID] [--wait] [--submit] | lock | grants | revoke ID
+bcli uninstall [--purge]
 
 Global flags: --env NAME, --json
 ```

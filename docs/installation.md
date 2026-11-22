@@ -42,11 +42,11 @@ Both install the latest release for your OS and CPU and print the next steps. Th
 A specific release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.sh | sh -s -- --version v0.14.2
+curl -fsSL https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.sh | sh -s -- --version v0.14.4
 ```
 
 ```powershell
-$env:BCLI_VERSION = "v0.14.2"; irm https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.ps1 | iex
+$env:BCLI_VERSION = "v0.14.4"; irm https://raw.githubusercontent.com/servas-ai/bcli-public/main/install.ps1 | iex
 ```
 
 > [!NOTE]
@@ -323,11 +323,11 @@ The logon start adds two values to `HKCU\Software\Microsoft\Windows\CurrentVersi
 - Moving `bcli.exe` to another folder: the next start registers the browser extension host again; until then local
   sessions fail with `provision_error`. Keep the folder on your `PATH`.
 - `bcli assist` and `bcli audio` are not available on Windows; use the live view (`view_url`) for human hand-over.
-- **Known issue (v0.14.x): many local sessions can lock your Windows account.** Each new local session starts Edge
-  with a fresh profile, and Edge then makes one failed Windows sign-in check (Security event 4625). Under the default
-  Windows 11 lockout policy (10 failures within 10 minutes), about ten local sessions in a row without a 10-minute
-  pause lock the account for 10 minutes, also for unlock and sign-in. Cloud sessions are not affected. Until a fix,
-  space out local sessions or reuse one session.
+- **Fixed in v0.14.4: many local sessions could lock your Windows account.** Up to v0.14.3, each new local session
+  started Edge with a fresh profile, and Edge then made one failed Windows sign-in check (Security event 4625). Under
+  the default Windows 11 lockout policy (10 failures within 10 minutes), about ten local sessions in a row locked the
+  account for 10 minutes. v0.14.4 tells the session's Edge profile the answer up front, so Edge skips the check; your own
+  Edge profile and Edge policies are not touched. Update with `bcli update`. If your account is locked, wait 10 minutes.
 
 **Execution policy.** A fresh Windows 11 has the PowerShell execution policy `Restricted`. `irm … | iex` and bcli
 itself are not affected, and `agent-web` starts through `agent-web.cmd`, which works anyway. `npm` (which is
@@ -400,7 +400,7 @@ to the cloud browser over CDP; it does not need to download a browser of its own
 <summary><strong>Linux and macOS</strong></summary>
 
 ```bash
-VERSION=v0.14.2                                                      # the release to install
+VERSION=v0.14.4                                                      # the release to install
 curl -fsSL "https://raw.githubusercontent.com/servas-ai/bcli-public/$VERSION/bin/agent-web" -o "$HOME/.local/bin/agent-web"
 chmod +x "$HOME/.local/bin/agent-web"
 npm install -g agent-browser
@@ -412,7 +412,7 @@ agent-web --help
 <summary><strong>Windows</strong> (PowerShell)</summary>
 
 ```powershell
-$Version = "v0.14.2"                                                 # the release to install
+$Version = "v0.14.4"                                                 # the release to install
 $Dir     = "$env:LOCALAPPDATA\Programs\bcli"                         # same folder as bcli.exe, already on PATH
 foreach ($f in "agent-web.cmd", "agent-web-ps.ps1") {
   Invoke-WebRequest -UseBasicParsing "https://raw.githubusercontent.com/servas-ai/bcli-public/$Version/bin/$f" -OutFile "$Dir\$f"
@@ -435,7 +435,7 @@ The installers do exactly this; use it if you want to see every step or cannot p
 <summary><strong>Linux and macOS</strong> (needs OpenSSL 3; on macOS <code>brew install openssl@3</code>)</summary>
 
 ```bash
-VERSION=v0.14.2                                                      # the release to install
+VERSION=v0.14.4                                                      # the release to install
 OS=$(uname -s | tr 'A-Z' 'a-z')                                      # linux or darwin
 ARCH=$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')    # amd64 or arm64
 BASE=https://github.com/servas-ai/bcli-public/releases/download/$VERSION
@@ -458,7 +458,7 @@ PowerShell 5.1 takes minutes for a 25 MB file):
 
 ```powershell
 $ProgressPreference = 'SilentlyContinue'
-$Version = "v0.14.2"
+$Version = "v0.14.4"
 $Base = "https://github.com/servas-ai/bcli-public/releases/download/$Version"
 $Src  = "$env:USERPROFILE\Downloads\$Version"
 New-Item -ItemType Directory -Force -Path $Src | Out-Null
@@ -530,7 +530,7 @@ MCowBQYDK2VwAyEAfUyxc9eOwrlMrsEPHYTcYJoVTE8b/Lxj4B4I8lfEk/E=
 `SHA256SUMS.sig` contains the 64-byte signature, base64-encoded. Verify with OpenSSL 3.x:
 
 ```bash
-VERSION=v0.14.2
+VERSION=v0.14.4
 BASE=https://github.com/servas-ai/bcli-public/releases/download/$VERSION
 curl -fsSLO "$BASE/SHA256SUMS" -O "$BASE/SHA256SUMS.sig"
 curl -fsSLO https://raw.githubusercontent.com/servas-ai/bcli-public/main/keys/bcli-release-ed25519.pem

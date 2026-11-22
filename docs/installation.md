@@ -68,6 +68,14 @@ Homebrew tap: [servas-ai/homebrew-tap](https://github.com/servas-ai/homebrew-tap
 [servas-ai/scoop-bucket](https://github.com/servas-ai/scoop-bucket). Both pin the SHA-256 of each binary from the
 signed `SHA256SUMS`. Scoop needs Git to add a bucket: run `scoop install git` first if `scoop bucket add` asks for it.
 
+No Scoop yet? It installs per user, without administrator rights ([scoop.sh](https://scoop.sh)):
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned   # once, if PowerShell refuses to run the installer
+irm get.scoop.sh | iex
+scoop install git
+```
+
 **winget:** the package `servas.bcli` has been submitted to the winget community repository
 ([microsoft/winget-pkgs#486222](https://github.com/microsoft/winget-pkgs/pull/486222)). `winget install servas.bcli`
 works once Microsoft has merged it; until then use `install.ps1` or Scoop.
@@ -338,7 +346,10 @@ and would no longer be updated with bcli.
 bcli does not need Node.js. The [agent-web helper](#agent-web-helper) (via `agent-browser`) and the
 [Node.js example](../examples/) do.
 
-**Windows.** `winget install OpenJS.NodeJS.LTS` (or `scoop install nodejs-lts`), then open a new terminal:
+**Windows.** As a standard user (no administrator rights), use [Scoop](#package-managers):
+`scoop install nodejs-lts`. `winget install OpenJS.NodeJS.LTS` also works, but it installs Node.js for the whole
+machine (it may ask for an administrator), and a freshly created user may not have `winget` until the App Installer
+has been set up for them. Then open a new terminal:
 
 ```powershell
 node --version
@@ -350,8 +361,13 @@ directory so `npm install -g` needs no `sudo` and never fails with `EACCES`:
 
 ```bash
 sudo apt install nodejs npm
+node --version                            # agent-browser needs Node.js 22 or newer
 npm config set prefix "$HOME/.local"      # global packages → ~/.local/bin
 ```
+
+Many distributions still ship an older Node.js (Debian 12: 18, Debian 13: 20, Ubuntu 24.04: 18). If
+`node --version` prints less than 22, install a current LTS from [nodejs.org](https://nodejs.org/en/download)
+instead, for example with `nvm`, which needs no `sudo` and keeps global packages in your home directory.
 
 **macOS.** `brew install node`.
 
@@ -541,9 +557,14 @@ place. A Homebrew, Scoop or winget install is best updated with its package mana
 
 ## Uninstalling
 
+Start with `bcli logout` (once per cloud environment: `bcli --env NAME logout`). It deletes the stored sign-in of
+that environment on this machine and says so. It does not revoke the sign-in at the server; that grant ends on its
+own when it expires.
+
 **Linux and macOS:**
 
 ```bash
+bcli logout
 bcli daemon stop 2>/dev/null; rm -f ~/.local/bin/bcli ~/.local/bin/agent-web
 rm -rf ~/.bcli ~/.config/bcli     # optional: login tokens, local state, config and local vault
 ```
@@ -553,6 +574,7 @@ On macOS with local mode, run `./install-macos.sh --uninstall` first. Homebrew: 
 **Windows:**
 
 ```powershell
+bcli logout
 bcli uninstall            # keeps the vault, environments and logs
 bcli uninstall --purge    # also deletes them
 ```
@@ -575,7 +597,7 @@ Check afterwards (all three print nothing):
 
 ```powershell
 Get-Process bcli* -ErrorAction SilentlyContinue
-Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run | Select-Object 'bcli*'
+(Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run).PSObject.Properties.Name -like 'bcli*'
 'Microsoft\Edge', 'Google\Chrome', 'Chromium', 'BraveSoftware\Brave-Browser' |
   ForEach-Object { Get-Item "HKCU:\Software\$_\NativeMessagingHosts\ai.servas.baas.vault" -ErrorAction SilentlyContinue }
 ```

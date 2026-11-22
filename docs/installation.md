@@ -229,7 +229,7 @@ sending the form. `--totp-env VAR` adds a one-time-code secret (`otpauth://` URI
 `bcli vault tabs` lists the tabs the session's browser extension reports to the vault (`ID URL TITLE`). It stays
 empty until the extension has connected, a few seconds after `session create` (up to about 30 s, longest for the first
 session after a `bcli update`). Since v0.14.2 `vault autofill` and `vault bw autofill` wait for it on their own: up to
-45 s (`--ready-timeout`, `0` = no wait), with one line `vault: waiting up to 45s for the browser extension to report
+45 s (`--ready-timeout`, a duration such as `90s`; `0` = no wait), with one line `vault: waiting up to 45s for the browser extension to report
 the page` on stderr. Nothing is filled and no approval is requested before the page is listed. If the extension does
 not connect in time they exit 1 with `browser extension not connected yet: …`: check that the session still runs and
 that `bcli vault tabs` lists the page, then run the command again.
@@ -252,8 +252,10 @@ needs one new unlock too: bcli never stores the passphrase.
 (you, full control). A file created normally (`Set-Content`, Notepad) inherits the folder's entries. bcli then does not
 use it: `bcli vault unlock` stops with exit 7 and `vault: the passphrase file vault.passphrase exists but was not used:
 its ACL must be owner-only and not inherited. Fix it in PowerShell with: icacls …`, without opening a passphrase prompt
-(v0.14.0 ignored such a file without a message). An empty file is reported the same way. Piped input and environment
-variables take precedence over the file. After creating the file (one line, the passphrase), run once:
+(v0.14.0 ignored such a file without a message). An empty file is reported the same way. Only `BCLI_VAULT_PASSPHRASE`
+takes precedence over the file; **piped input does not**: while `vault.passphrase` exists, `bcli vault unlock` uses it
+(and fails on a broken, empty or wrong one) even if you pipe the passphrase in. Delete the file to unlock by pipe or
+prompt. (The message's pointer to "Passphrase file" in `WINDOWS-INSTALL.md` means this section.) After creating the file (one line, the passphrase), run once:
 
 ```powershell
 $f = "$env:USERPROFILE\.config\bcli\vault.passphrase"

@@ -47,8 +47,12 @@ def main():
 class Bcli < Formula
   desc "{BREW_DESC}"
   homepage "https://github.com/{REPO}"
-  version "{version}"
   license :cannot_represent
+
+  livecheck do
+    url :stable
+    strategy :github_latest
+  end
 
   on_macos do
     on_arm do
@@ -70,11 +74,6 @@ class Bcli < Formula
       url "{base}/bcli-linux-amd64"
       sha256 "{h("bcli-linux-amd64")}"
     end
-  end
-
-  livecheck do
-    url :stable
-    strategy :github_latest
   end
 
   def install

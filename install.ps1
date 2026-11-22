@@ -114,10 +114,10 @@ try {
     }
     if (-not $Version.StartsWith('v')) { $Version = "v$Version" }
     if ($Version -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$') { Fail "invalid version $Version (expected vX.Y.Z)" }
-    $base = "https://github.com/$Repo/releases/download/$Version"
+    $RelUrl = "https://github.com/$Repo/releases/download/$Version"
     Write-Host "bcli $Version for windows/amd64 -> $Dir\bcli.exe"
 
-    foreach ($f in 'SHA256SUMS', 'SHA256SUMS.sig', 'VERSION') { Get-File "$base/$f" "$tmp\$f" }
+    foreach ($f in 'SHA256SUMS', 'SHA256SUMS.sig', 'VERSION') { Get-File "$RelUrl/$f" "$tmp\$f" }
     $sums = [IO.File]::ReadAllBytes("$tmp\SHA256SUMS")
     $sig  = [Convert]::FromBase64String(([IO.File]::ReadAllText("$tmp\SHA256SUMS.sig")).Trim())
     if (-not (Test-Ed25519 ([Convert]::FromBase64String($ReleaseKey)) $sums $sig)) {
@@ -139,7 +139,7 @@ try {
     if (('v' + ([IO.File]::ReadAllText("$tmp\VERSION")).Trim()) -ne $Version) { Fail "release $Version carries another version" }
 
     Write-Host "  download   $Asset"
-    Get-File "$base/$Asset" "$tmp\$Asset"
+    Get-File "$RelUrl/$Asset" "$tmp\$Asset"
     Test-Sum $Asset "$tmp\$Asset"
     Write-Host "  checksum   OK (sha256 $($want[$Asset]))"
 

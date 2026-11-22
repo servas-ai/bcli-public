@@ -323,6 +323,11 @@ The logon start adds two values to `HKCU\Software\Microsoft\Windows\CurrentVersi
 - Moving `bcli.exe` to another folder: the next start registers the browser extension host again; until then local
   sessions fail with `provision_error`. Keep the folder on your `PATH`.
 - `bcli assist` and `bcli audio` are not available on Windows; use the live view (`view_url`) for human hand-over.
+- **Known issue (v0.14.x): many local sessions can lock your Windows account.** Each new local session starts Edge
+  with a fresh profile, and Edge then makes one failed Windows sign-in check (Security event 4625). Under the default
+  Windows 11 lockout policy (10 failures within 10 minutes), about ten local sessions in a row without a 10-minute
+  pause lock the account for 10 minutes, also for unlock and sign-in. Cloud sessions are not affected. Until a fix,
+  space out local sessions or reuse one session.
 
 **Execution policy.** A fresh Windows 11 has the PowerShell execution policy `Restricted`. `irm … | iex` and bcli
 itself are not affected, and `agent-web` starts through `agent-web.cmd`, which works anyway. `npm` (which is

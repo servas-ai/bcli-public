@@ -3,6 +3,23 @@
 All notable changes to bcli are listed here. Releases and binaries:
 [github.com/servas-ai/bcli-public/releases](https://github.com/servas-ai/bcli-public/releases).
 
+## v0.14.5 — Bitwarden on Linux and macOS
+
+### Added
+
+- **Bitwarden bridge on Linux and macOS:** `bcli bwbridge start` installs the bridge built into bcli as a systemd user
+  service (`bcli-bwbridge.service`) or LaunchAgent (`ai.servas.bcli.bwbridge`) and starts it; `stop`, `status`,
+  `remove`. `bcli vault bw setup` and `bcli vault bw autofill` now work from the public release on Linux and macOS.
+  Guide: [docs/bitwarden.md](docs/bitwarden.md).
+- **Installer:** `install.sh` sets up the bridge in a desktop session (`--no-bwbridge` skips it) and the AppArmor
+  profile of the approval window on Ubuntu/Kubuntu 23.10–25.10 when `sudo` needs no password, otherwise it prints
+  the command (`bcli bwbridge apparmor`).
+- **`bcli uninstall` on Linux and macOS** (`--purge` also deletes user data).
+
+### Changed
+
+- `bcli bwbridge` is listed in the help on every platform; `status` and `start --restart` also on Windows.
+
 ## v0.14.4 — Windows account lockout fixed
 
 ### Fixed

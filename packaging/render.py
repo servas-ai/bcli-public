@@ -81,11 +81,19 @@ class Bcli < Formula
     bin.install Dir["bcli-*"].first => "bcli"
   end
 
+  # The Bitwarden bridge is a per-user service that bcli itself installs (systemd user unit
+  # bcli-bwbridge.service / LaunchAgent ai.servas.bcli.bwbridge), not a `brew services` job:
+  # it must run in the desktop session (display variables on Linux, Aqua on macOS) under one
+  # label and socket, the same as install.sh sets up. See docs/bitwarden.md.
   def caveats
     <<~EOS
       Upgrade with `brew upgrade bcli`. Sign in:
         bcli env add cloud --kind cloud --endpoint https://api.baas.servas.ai && bcli env use cloud
         bcli login
+      Bitwarden autofill: start the bridge once in a desktop terminal (it then starts at every login):
+        bcli bwbridge start
+      After `brew upgrade bcli`: bcli bwbridge start --restart. Before `brew uninstall bcli`: bcli uninstall.
+      Guide: https://github.com/servas-ai/bcli-public/blob/main/docs/bitwarden.md
     EOS
   end
 

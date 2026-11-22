@@ -178,23 +178,19 @@ signature macOS requires; a binary downloaded in the terminal carries no quarant
 ### Local mode on macOS (optional)
 
 For [local mode](usage.md#local-mode) the local daemon and the Bitwarden bridge run as per-user LaunchAgents (no root,
-no system service), so they start again after every login. (For the bridge alone, `bcli bwbridge start` is enough.)
-[`scripts/macos/install-macos.sh`](../scripts/macos/install-macos.sh) sets them up. It needs the absolute path of the
-Chromium-based browser the daemon should launch. In v0.14.0 it supports **Apple silicon only**; on Intel Macs use
-cloud sessions.
+no system service), so they start again after every login. Run both once in Terminal of your desktop login (not over
+SSH, which has no login session):
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/servas-ai/bcli-public/main/scripts/macos/install-macos.sh
-shasum -a 256 install-macos.sh   # v0.14.0: 6b74ec6a5e8a808d529ce67e0374d9dd262115c57e12a13dfe7575fe3178e720
-chmod +x install-macos.sh
-BROWSER='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-./install-macos.sh --bin ~/.local/bin/bcli --browser "$BROWSER" --dry-run   # shows what it will install
-./install-macos.sh --bin ~/.local/bin/bcli --browser "$BROWSER"
-bcli daemon status
+bcli daemon start     # installs and starts the LaunchAgent ai.servas.bcli.daemon
+bcli bwbridge start   # installs and starts the LaunchAgent ai.servas.bcli.bwbridge
+bcli daemon status    # shows the browser local sessions use
 ```
 
-`./install-macos.sh --uninstall` removes the LaunchAgents again (binaries, profiles and vault stay). Run it as the
-logged-in user, without `sudo`.
+The daemon picks Chromium, Google Chrome or Microsoft Edge from `/Applications` (see [local mode](usage.md#local-mode));
+set `BAAS_BROWSER_PATH` before `bcli daemon start`, or `browser_path` in the config, for another one. `bcli daemon stop`
+unloads the daemon until the next login; `bcli uninstall` removes both LaunchAgents. The older
+[`scripts/macos/install-macos.sh`](../scripts/macos/install-macos.sh) is no longer needed.
 
 ## Windows
 

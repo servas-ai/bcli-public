@@ -121,7 +121,7 @@ verify_openssl() {
   printf '%s\n' "$KEY_PEM" >"$tmp/key.pem"
   hex_to_file "$2" "$tmp/sig.bin"
   if openssl pkeyutl -verify -pubin -inkey "$tmp/key.pem" -rawin -in "$3" -sigfile "$tmp/sig.bin" \
-       </dev/null >/dev/null 2>"$tmp/openssl.err"; then
+       </dev/null >"$tmp/openssl.err" 2>&1; then
     return 0
   fi
   # OpenSSL 3 says "Signature Verification Failure" for a bad signature; anything else

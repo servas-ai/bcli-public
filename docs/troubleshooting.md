@@ -117,6 +117,10 @@ on its host (`docker start <name>`, `docker logs <name>`; no new key needed afte
 from scratch: **[Start an exit node](exit-node.md)**. The console (**Tenant & exit node → Refresh**) shows when it is
 online again.
 
+If `bcli exit-node list` shows an exit as `online` but under another name than `bcli tenant` (for example
+`baas-exit` after a plain `./up.sh`), sessions do not use it: remove it, issue a new key and start it with the default
+exit name ([Start an exit node → Troubleshooting](exit-node.md#troubleshooting)).
+
 **Session `failed` with `failure_code: ready_timeout`**
 The browser did not become ready in time (`terminate_reason: provision_failed`). This is usually transient: stop it
 if it is still listed and create a new session. If it keeps happening, retry later and report the session id.

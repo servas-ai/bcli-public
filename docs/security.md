@@ -30,7 +30,8 @@ control or watch that browser until the session ends.
 - Session traffic leaves the internet only through an exit node of your own tenant. Requests to use another tenant's
   exit are rejected, and if your exit node is down, sessions fail instead of using a fallback route.
 - The [exit-node container](https://github.com/servas-ai/baas-exit-docker) blocks connections from the platform into
-  the host, and blocks session traffic to private, link-local and loopback ranges of your network.
+  the host, and blocks session traffic to private, link-local and loopback ranges of your network. Details:
+  [What the exit node can and cannot see](exit-node.md#what-the-exit-node-can-and-cannot-see).
 
 ## Transport
 

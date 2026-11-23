@@ -32,10 +32,15 @@ your tenant fail with `exit_node_unavailable` (see [Troubleshooting](#troublesho
 ## 1. Find the name of your exit node
 
 Sessions use your tenant's **default exit node** by name. Your exit node must register with exactly that name.
+An exit node under any other name shows as **online**, but sessions do not use it (see
+[Troubleshooting](#troubleshooting)).
 
 ```bash
 bcli tenant              # last line: "Default exit: <name>", for example "Default exit: acme-exit"
 ```
+
+The console shows the same name at <https://console.baas.servas.ai/tenant> under **Default exit node**, and its
+**Set up an exit node** command already carries it (`TS_HOSTNAME=acme-exit NAME=acme-exit ./up.sh`).
 
 Below, `acme-exit` stands for that name. If the line is empty, ask your servas.ai contact which name to use; they set
 it as your default once the node is online.
@@ -129,8 +134,12 @@ docker compose up -d
 - **After the first start**, delete the `TS_AUTHKEY=` line from `exit.env`. The key is used up anyway; the node now
   starts from the identity in the volume.
 
-Alternative with the helper script of the repository (asks for the key without echo, same container settings):
-`git clone https://github.com/servas-ai/baas-exit-docker.git && cd baas-exit-docker && NAME=acme-exit TS_HOSTNAME=acme-exit ./up.sh`.
+Alternative with the helper script of the repository (asks for the key without echo, same container settings; this is
+the command the console shows under **Set up an exit node**):
+`git clone https://github.com/servas-ai/baas-exit-docker.git && cd baas-exit-docker && TS_HOSTNAME=acme-exit NAME=acme-exit ./up.sh`.
+Always pass the name: a plain `./up.sh` registers the node as `baas-exit`, which your tenant does not use. If Docker
+needs root: `sudo TS_HOSTNAME=acme-exit NAME=acme-exit ./up.sh`. When it prints `OK: acme-exit is up`, continue with
+step 5.
 
 ## 5. Check that it works
 
@@ -219,6 +228,17 @@ is removed with your next key).
 (exit code 1, no session id). The tenant's exit node is not running or not reachable. Check `bcli tenant` (which name
 is the default), `bcli exit-node list` (is that name `online`?) and `docker logs <name>` on the exit node's host.
 Start it again (`docker start <name>`), or set it up as above. Sessions never fall back to another route.
+
+**An exit node is online, but sessions still fail with `exit_node_unavailable`**: it runs under a wrong name. Typical
+case: `./up.sh` without a name, so `bcli exit-node list` shows `baas-exit   online` while `bcli tenant` says
+`Default exit: acme-exit`. Sessions only use the default exit; a node under another name is never used. Fix it on the
+exit node's host:
+
+1. Remove the wrongly named node: `docker rm -f baas-exit && docker volume rm baas-exit-state`.
+2. Issue a new one-time key in the console (this also removes your tenant's offline exit nodes, so the old
+   `baas-exit` disappears once it is offline).
+3. Start again with the right name: `TS_HOSTNAME=acme-exit NAME=acme-exit ./up.sh` (or step 4 with
+   `TS_HOSTNAME=acme-exit` in `exit.env`), then check with `bcli exit-node list` that `acme-exit` is `online`.
 
 **`code=exit_node_required`**: your tenant has no default exit and you did not pick one. Ask your servas.ai contact.
 

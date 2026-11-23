@@ -142,6 +142,8 @@ docker logs acme-exit
 docker inspect -f '{{.State.Health.Status}}' acme-exit     # healthy (after about 30 s)
 ```
 
+`docker logs` stays short on purpose: the start script prints only these lines and its own errors, never the key.
+
 Then, from any machine where you use bcli:
 
 ```bash
@@ -170,6 +172,8 @@ What it does:
 
 What it does not do (enforced inside the container by `entrypoint.sh`, in addition to the network policy):
 
+- **Kill switch on the session side.** Sessions use only this node. If you stop it, the browsers of running sessions
+  lose internet access until it is back (no fallback route), and new sessions are refused.
 - **No access to your LAN.** Session traffic to private and special address ranges is dropped: `10.0.0.0/8`,
   `172.16.0.0/12`, `192.168.0.0/16`, `100.64.0.0/10`, `169.254.0.0/16`, `127.0.0.0/8`, `0.0.0.0/8`, multicast, and
   for IPv6 `fc00::/7`, `fe80::/10`, `ff00::/8`, `::1`. There is no switch to allow it. Public addresses are reachable,
@@ -182,6 +186,9 @@ What it does not do (enforced inside the container by `entrypoint.sh`, in additi
   The rest of your host's traffic does not go through it.
 
 What the operator sees: the device in their overlay network (name, overlay IP, public IP, last seen, online state).
+What the node sees of the network: its peer list (`tailscale status` inside the container) shows the devices that may
+talk to it, that is your tenant's browser sessions and the operator's administration devices, by name. It cannot
+connect to any of them.
 
 ## Stop, remove, enroll again
 

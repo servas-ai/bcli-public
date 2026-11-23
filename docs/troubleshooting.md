@@ -181,8 +181,9 @@ Moving the executable is supported: run `bcli daemon stop`, then start it from t
 (`bcli daemon start`); it registers itself for the extension again. Make sure `PATH` points to the new folder.
 
 **Windows: Edge shows "Disable developer mode extensions"**
-Expected for every local session: bcli loads its credential extension unpacked. Close the pop-up with **×**; do not
-choose "Turn off", otherwise the vault cannot fill logins in that session.
+From v0.14.7 bcli turns this pop-up off in its own session profile; run `bcli update`. Up to v0.14.6 it appears in
+every local session because bcli loads its credential extension unpacked: close it with **×** and do not choose
+"Turn off", otherwise the vault cannot fill logins in that session.
 
 **Local session does not start / no browser found**
 Set the browser executable: `browser_path` in `~/.config/bcli/config.yaml` or `BAAS_BROWSER_PATH`. On Windows, install

@@ -340,10 +340,10 @@ too; tunnels are not needed. Daemon state lives in `~/.bcli/` (`BCLI_HOME`); the
 - **Start at logon.** `bcli daemon autostart enable` starts the daemon at every logon (`--bwbridge` also starts the
   Bitwarden bridge); `bcli daemon autostart disable` turns it off. The vault still needs one `bcli vault unlock` after
   each logon, by design. Details: [installation](installation.md#windows).
-- **"Disable developer mode extensions" in Edge.** Every local session loads bcli's credential extension unpacked, so
-  Microsoft Edge shows a "Disable developer mode extensions" pop-up each time a session window opens. This is
-  expected. Close it with the **×** (do **not** choose "Turn off", or the vault cannot fill logins in that session).
-  Google Chrome does not show it.
+- **"Disable developer mode extensions" in Edge.** Every local session loads bcli's credential extension unpacked.
+  From v0.14.7 bcli switches Microsoft Edge's pop-up about that off in the session's own profile (your normal Edge
+  profile is not touched). Up to v0.14.6 Edge shows it each time a session window opens: close it with the **×**
+  (do **not** choose "Turn off", or the vault cannot fill logins in that session). Google Chrome does not show it.
 - **Moving `bcli.exe`** is fine; it registers itself for the extension again on its next start.
 - **Not available on Windows:** `bcli assist` and `bcli audio`. Use the live view (`view_url`) to hand a session to a
   human.

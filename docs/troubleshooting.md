@@ -31,7 +31,7 @@ downloaded in the terminal carry no such mark.
 
 **Windows: "This app has been blocked by your system administrator" / blocked by App Control or Smart App Control**
 The machine only allows signed programs (AppLocker, App Control for Business / WDAC, Smart App Control). bcli is not
-code-signed and is not supported on such machines; ask us via [servas.ai](https://servas.ai).
+code-signed and is not supported on such machines; ask your contact at servas.ai.
 
 **Installer: "cannot check the Ed25519 signature on this machine"**
 `install.sh` found no working verifier. Install OpenSSL 3, `python3` or `bc` and run it again, or use Homebrew.
@@ -53,8 +53,8 @@ You are not signed in to this environment, or your login expired: `bcli login` (
 The sign-in was not completed in time. Run `bcli login` again and finish it right away.
 
 **`code=login_denied` / exit code 12**
-The sign-in was cancelled or your account is not allowed to use this installation. Contact your administrator or
-[servas.ai](https://servas.ai).
+The sign-in was cancelled or your account is not allowed to use this installation. Contact your administrator or your
+contact at servas.ai.
 
 **`unauthorized` / exit code 2 although `whoami` works**
 Your identity is known but has no access to this resource (for example another user's session or profile, or an
@@ -65,7 +65,7 @@ The selected environment is local. Use `bcli login --env cloud` or `bcli env use
 
 **Warning: "API-key authentication is deprecated"**
 The environment still uses an API key. Remove it and sign in with OIDC:
-`bcli env remove cloud && bcli env add cloud --kind cloud --endpoint https://api.baas.servas.ai && bcli login --env cloud`.
+`bcli env remove cloud`, then `bcli env add cloud --kind cloud --endpoint https://api.baas.servas.ai`, then `bcli login --env cloud`.
 
 ## Environments
 
@@ -185,7 +185,7 @@ Set the browser executable: `browser_path` in `~/.config/bcli/config.yaml` or `B
 Microsoft Edge or Google Chrome in the default location.
 
 **`bcli daemon status` says it is not running after an update**
-Restart it: `bcli daemon stop && bcli daemon start`.
+Restart it: `bcli daemon stop`, then `bcli daemon start`.
 
 **`vault autofill` or `vault bw autofill` waits 45 s, then `browser extension not connected yet`**
 No local session is running, or its browser has not loaded bcli's extension yet. Start a session
@@ -219,7 +219,7 @@ manager (`brew upgrade bcli`, `scoop update bcli`).
 
 **Linux/macOS: the Bitwarden bridge still runs the old version after an update**
 `bcli bwbridge start --restart` (the bridge locks; unlock it again when asked). The local daemon:
-`bcli daemon stop && bcli daemon start`.
+`bcli daemon stop`, then `bcli daemon start`.
 
 **Windows: `bcli update` says a newer version is available but does not install it in the background**
 Expected: the daily background check never replaces bcli while the daemon, the vault or the Bitwarden bridge run. Run
@@ -233,5 +233,5 @@ install to `~/.local/bin`, or update with your package manager (`brew upgrade bc
 ## Still stuck?
 
 Collect `bcli version`, `bcli env list --offline`, the exact command and its stderr output (**remove any URL that
-contains `token=`**) and contact us via [servas.ai](https://servas.ai) or open an
+contains `token=`**) and send it to your contact at servas.ai, or open an
 [issue](https://github.com/servas-ai/bcli-public/issues).

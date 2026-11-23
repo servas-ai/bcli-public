@@ -589,7 +589,7 @@ Turn the background check off with `BCLI_NO_AUTO_UPDATE=1` or `auto_update: fals
 [`config.yaml`](configuration.md). The binary must be writable by your user.
 
 **Linux and macOS.** A running local daemon and Bitwarden bridge keep the old version until you restart them:
-`bcli daemon stop && bcli daemon start`, and `bcli bwbridge start --restart` (the bridge locks; unlock it again when
+`bcli daemon stop`, then `bcli daemon start`, and `bcli bwbridge start --restart` (the bridge locks; unlock it again when
 asked). The same applies after the installer, `brew upgrade` or a manual install.
 
 **Windows.** The running `bcli.exe` is renamed aside (`.bcli-replaced-<random>.old` in the same folder) and the new

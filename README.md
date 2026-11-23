@@ -48,12 +48,23 @@ your laptop / agent                      servas.ai cloud
 └──────────────────────┘                 └───────────────────────────┘
 ```
 
+## Access
+
+- **Account:** your contact at servas.ai sets up your organisation (tenant) and invites your users. You sign in with
+  `bcli login`; there is no self sign-up.
+- **Exit node:** every session reaches the web through your tenant's own exit node, a small Docker container you run
+  in your office or data center. Websites see that location's IP address. Each tenant needs its own exit node, and
+  sessions never fall back to another route. Set it up once: **[Start an exit node](docs/exit-node.md)**.
+- **If `session create` fails** with `exit_node_unavailable`, your exit node is not running: see
+  [Troubleshooting → Sessions](docs/troubleshooting.md#sessions).
+
 ## Quick start
 
 After [installing](#install) `bcli`:
 
 ```bash
-bcli env add cloud --kind cloud --endpoint https://api.baas.servas.ai && bcli env use cloud
+bcli env add cloud --kind cloud --endpoint https://api.baas.servas.ai
+bcli env use cloud
 bcli login                      # OIDC device-code sign-in via auth.servas.ai
 bcli session create --wait      # prints JSON with id, cdp_url, cdp_ws_url, view_url
 ```
@@ -75,7 +86,7 @@ await browser.close();          // disconnects only – the session keeps runnin
 bcli session stop <id>
 ```
 
-No VPN, no Kubernetes, no proxy contracts and no browser updates on your side. All you need is a servas.ai account.
+No VPN, no Kubernetes, no proxy contracts and no browser updates on your side. All you need is a servas.ai account and a running exit node (see [Access](#access)).
 
 ## Highlights
 
@@ -191,7 +202,8 @@ you run it in a desktop terminal; otherwise:
 bcli bwbridge start                    # once; starts again at every login (Windows: see the guide)
 bcli vault bw setup                    # window: API key, master password, approval password; EU accounts choose bitwarden.eu
 bcli vault bw autofill --wait --submit                          # local session, active tab
-bcli vault unlock --session <id> && bcli vault bw autofill --session <id> --wait --submit   # cloud session
+bcli vault unlock --session <id>                                # cloud session
+bcli vault bw autofill --session <id> --wait --submit
 ```
 
 **Ubuntu/Kubuntu 23.10–25.10** need an AppArmor profile for the approval window once (the installer does it when
@@ -303,7 +315,7 @@ This repository contains releases, documentation and agent skills only. bcli its
 
 ## Support
 
-- Product, accounts and access: [servas.ai](https://servas.ai)
+- Product, accounts, access and help: your contact at servas.ai
 - Web console: [console.baas.servas.ai](https://console.baas.servas.ai)
 - Bugs and questions about this documentation: [GitHub Issues](https://github.com/servas-ai/bcli-public/issues)
 - Security issues: see [SECURITY.md](SECURITY.md) — please do not open a public issue.

@@ -3,7 +3,8 @@
 This guide assumes bcli is [installed](installation.md) and you are [signed in](configuration.md):
 
 ```bash
-bcli env use cloud && bcli whoami
+bcli env use cloud
+bcli whoami
 ```
 
 All examples use the current environment. Add `--env NAME` (or set `BCLI_ENV`) to target another one.
